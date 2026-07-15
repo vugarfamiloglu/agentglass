@@ -116,8 +116,8 @@ agentglass/
 - [x] Trace store, live hub, dashboard shell
 - [x] Trace simulator — a week of realistic runs, streamed live
 - [x] Live overview — stat cards, spend chart, recent runs
+- [x] Trace explorer + run inspector — waterfall timeline, per-step tokens/cost, I/O
 - [ ] Recording proxy (Anthropic + OpenAI)
-- [ ] Trace explorer + run inspector (tool tree, token/cost meters)
 - [ ] Context-window timeline & run diff
 - [ ] Analytics (spend/latency/heatmap) + CSV export
 - [ ] Ask-your-runs assistant
