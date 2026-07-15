@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Build output
+dist/
+web/dist/
+*.tsbuildinfo
+
+# Runtime data — SQLite trace store + encrypted vault key (never commit)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
