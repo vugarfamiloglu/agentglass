@@ -15,6 +15,7 @@ import { loadConfig } from "./config.js";
 import { Store } from "./db.js";
 import { Hub } from "./hub.js";
 import type { Sink } from "./hub.js";
+import { Correlator, proxyRoutes } from "./proxy.js";
 import { Simulator } from "./sim.js";
 import { serveDist } from "./static.js";
 
@@ -30,6 +31,9 @@ if (cfg.simulate) {
   if (store.traceCount() === 0) sim.seed();
   sim.start(25_000);
 }
+
+const correlator = new Correlator(store, hub);
+correlator.startSweeper();
 
 const app = new Hono();
 const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
@@ -53,6 +57,10 @@ app.get(
 );
 
 app.route("/api", apiRoutes(store, hub, VERSION));
+
+// Recording proxy — Anthropic & OpenAI compatible. Mounted before the SPA
+// catch-all so /v1/* reaches the proxy, not the static handler.
+app.route("/", proxyRoutes(store, hub, correlator));
 
 // Dashboard SPA (production build). Vite serves the UI during development.
 app.use("/*", serveDist(cfg.webDist));
