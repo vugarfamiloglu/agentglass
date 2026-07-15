@@ -15,6 +15,7 @@ import { loadConfig } from "./config.js";
 import { Store } from "./db.js";
 import { Hub } from "./hub.js";
 import type { Sink } from "./hub.js";
+import { Simulator } from "./sim.js";
 import { serveDist } from "./static.js";
 
 const VERSION = "0.1.0";
@@ -22,6 +23,13 @@ const VERSION = "0.1.0";
 const cfg = loadConfig();
 const store = new Store(cfg.dataDir);
 const hub = new Hub();
+
+// Seed a week of history on first boot, then stream fresh runs live.
+if (cfg.simulate) {
+  const sim = new Simulator(store, hub);
+  if (store.traceCount() === 0) sim.seed();
+  sim.start(25_000);
+}
 
 const app = new Hono();
 const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
