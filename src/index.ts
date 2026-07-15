@@ -18,11 +18,13 @@ import type { Sink } from "./hub.js";
 import { Correlator, proxyRoutes } from "./proxy.js";
 import { Simulator } from "./sim.js";
 import { serveDist } from "./static.js";
+import { Vault } from "./vault.js";
 
 const VERSION = "0.1.0";
 
 const cfg = loadConfig();
 const store = new Store(cfg.dataDir);
+const vault = new Vault(cfg.dataDir);
 const hub = new Hub();
 
 // Seed a week of history on first boot, then stream fresh runs live.
@@ -56,7 +58,7 @@ app.get(
   }),
 );
 
-app.route("/api", apiRoutes(store, hub, VERSION));
+app.route("/api", apiRoutes(store, hub, vault, VERSION));
 
 // Recording proxy — Anthropic & OpenAI compatible. Mounted before the SPA
 // catch-all so /v1/* reaches the proxy, not the static handler.

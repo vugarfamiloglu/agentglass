@@ -5,10 +5,12 @@
  */
 import { Hono } from "hono";
 
+import { ask } from "./assistant.js";
 import type { Store } from "./db.js";
 import type { Hub } from "./hub.js";
+import type { Vault } from "./vault.js";
 
-export function apiRoutes(store: Store, hub: Hub, version: string): Hono {
+export function apiRoutes(store: Store, hub: Hub, vault: Vault, version: string): Hono {
   const api = new Hono();
 
   api.get("/health", (c) =>
@@ -101,6 +103,49 @@ export function apiRoutes(store: Store, hub: Hub, version: string): Hono {
     const deleted = store.deleteTrace(c.req.param("id"));
     if (!deleted) return c.json({ ok: false, error: "trace not found" }, 404);
     return c.json({ ok: true, data: { deleted: true } });
+  });
+
+  // ---- assistant & settings ----
+
+  api.get("/settings", (c) =>
+    c.json({
+      ok: true,
+      data: {
+        assistantConfigured: Boolean(store.getSetting("assistant_key")),
+        provider: store.getSetting("assistant_provider") ?? "anthropic",
+        model: store.getSetting("assistant_model") ?? "",
+      },
+    }),
+  );
+
+  api.post("/settings/assistant", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      key?: unknown;
+      provider?: unknown;
+      model?: unknown;
+    };
+    const key = typeof body.key === "string" ? body.key.trim() : "";
+    const provider = body.provider === "openai" ? "openai" : "anthropic";
+    const model = typeof body.model === "string" ? body.model.trim() : "";
+    if (!key) return c.json({ ok: false, error: "an API key is required" }, 400);
+    store.setSetting("assistant_key", vault.seal(key));
+    store.setSetting("assistant_provider", provider);
+    if (model) store.setSetting("assistant_model", model);
+    return c.json({ ok: true, data: { configured: true } });
+  });
+
+  api.delete("/settings/assistant", (c) => {
+    store.setSetting("assistant_key", "");
+    return c.json({ ok: true, data: { configured: false } });
+  });
+
+  api.post("/assistant", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { message?: unknown; traceId?: unknown };
+    const message = typeof body.message === "string" ? body.message.trim() : "";
+    const traceId = typeof body.traceId === "string" ? body.traceId : undefined;
+    if (!message) return c.json({ ok: false, error: "message is required" }, 400);
+    const reply = await ask(store, vault, message, traceId);
+    return c.json({ ok: true, data: reply });
   });
 
   return api;
