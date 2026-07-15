@@ -32,6 +32,7 @@
     "dev:web": "npm --prefix web run dev",
     "build": "npm --prefix web run build && tsc -p tsconfig.json",
     "start": "node dist/index.js",
+    "test": "tsx --test src/agentglass.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && npm --prefix web run typecheck"
   },
   "dependencies": {
