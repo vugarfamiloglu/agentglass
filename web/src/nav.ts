@@ -43,5 +43,6 @@ export function titleFor(path: string): string {
     }
   }
   if (path.startsWith("/traces/")) return "Trace detail";
+  if (path.startsWith("/diff")) return "Compare runs";
   return "AgentGlass";
 }

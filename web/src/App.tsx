@@ -6,6 +6,7 @@ import { Overview } from "./pages/Overview";
 import { Traces } from "./pages/Traces";
 import { TraceDetail } from "./pages/TraceDetail";
 import { Connect } from "./pages/Connect";
+import { Diff } from "./pages/Diff";
 import { Placeholder } from "./pages/Placeholder";
 
 export function App() {
@@ -18,6 +19,9 @@ export function App() {
           <Route path="/" element={<Overview />} />
           <Route path="/traces" element={<Traces />} />
           <Route path="/traces/:id" element={<TraceDetail />} />
+          <Route path="/diff" element={<Diff />} />
+          <Route path="/diff/:a" element={<Diff />} />
+          <Route path="/diff/:a/:b" element={<Diff />} />
           <Route path="/live" element={<Placeholder title="Live" note="The real-time run feed lands next." />} />
           <Route path="/analytics" element={<Placeholder title="Analytics" note="Spend, latency, and token analytics land next." />} />
           <Route path="/models" element={<Placeholder title="Models" note="Per-model breakdowns land next." />} />

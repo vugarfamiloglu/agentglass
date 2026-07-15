@@ -1056,3 +1056,222 @@ a {
 .flow-arrow {
   color: var(--text-subtle);
 }
+
+/* ---- Context chart -------------------------------------------------------- */
+
+.ctx-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 10.5px;
+  color: var(--text-subtle);
+}
+.ctx-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ctx-sw {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.sw-fresh {
+  background: var(--violet);
+}
+.sw-cache {
+  background: var(--cyan);
+}
+.ctx-peak {
+  color: var(--text-muted);
+}
+.ctx-wrap {
+  padding: 16px;
+}
+.ctx-chart {
+  width: 100%;
+  height: 130px;
+  display: block;
+}
+.ctx-bar-fresh {
+  fill: color-mix(in srgb, var(--violet) 72%, transparent);
+}
+.ctx-bar-cache {
+  fill: color-mix(in srgb, var(--cyan) 62%, transparent);
+}
+
+/* ---- Detail actions ------------------------------------------------------- */
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mini-link {
+  font-size: 11px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 10px;
+  transition: all 130ms ease;
+}
+.mini-link:hover {
+  color: var(--cyan);
+  border-color: color-mix(in srgb, var(--cyan) 32%, var(--border));
+}
+
+/* ---- Run diff ------------------------------------------------------------- */
+
+.diff-pickers {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.diff-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 220px;
+}
+.diff-pick-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-subtle);
+}
+.diff-select {
+  height: 38px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 12.5px;
+  padding: 0 12px;
+  cursor: pointer;
+  max-width: 100%;
+}
+.diff-vs {
+  color: var(--text-subtle);
+  padding-bottom: 9px;
+  font-size: 15px;
+}
+.diff-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.diff-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  position: relative;
+}
+.diff-card-tag {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 11px;
+  color: var(--cyan);
+  border: 1px solid color-mix(in srgb, var(--cyan) 30%, var(--border));
+  border-radius: 5px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+}
+.diff-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-right: 26px;
+}
+.diff-card-meta {
+  font-size: 11.5px;
+  color: var(--text-subtle);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.diff-metric {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 0.8fr 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.diff-metric:last-child {
+  border-bottom: 0;
+}
+.dm-a {
+  text-align: right;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.dm-b {
+  text-align: left;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.dm-label {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-subtle);
+}
+.dm-delta {
+  text-align: center;
+  font-size: 11.5px;
+}
+.dm-delta.worse {
+  color: var(--rose);
+}
+.dm-delta.better {
+  color: var(--cyan);
+}
+.dm-delta.flat {
+  color: var(--text-subtle);
+}
+.diff-spans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.diff-col {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+}
+.diff-col:last-child {
+  border-right: 0;
+}
+.diff-span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.diff-span:last-child {
+  border-bottom: 0;
+}
+.diff-span-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.diff-span-num {
+  font-size: 11px;
+}
+@media (max-width: 800px) {
+  .diff-cards,
+  .diff-spans {
+    grid-template-columns: 1fr;
+  }
+}
