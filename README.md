@@ -119,7 +119,7 @@ agentglass/
 - [x] Trace explorer + run inspector — waterfall timeline, per-step tokens/cost, I/O
 - [x] Recording proxy (Anthropic + OpenAI) — forward, stream, record
 - [x] Context-window chart & run diff
-- [ ] Analytics (spend/latency/heatmap) + CSV export
+- [x] Analytics — spend, activity heatmap, model/tool breakdown, CSV export
 - [ ] Ask-your-runs assistant
 - [ ] Single-binary distribution + Docker
 
