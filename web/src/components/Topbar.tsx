@@ -1,9 +1,12 @@
 import { useLocation } from "react-router-dom";
 
 import { titleFor } from "../nav";
+import { useLive } from "../lib/live";
 
 export function Topbar() {
   const { pathname } = useLocation();
+  const { connected, traces } = useLive();
+  const running = traces.filter((t) => t.status === "running").length;
   return (
     <header className="topbar">
       <div className="crumbs">
@@ -19,9 +22,10 @@ export function Topbar() {
       </div>
 
       <div className="topbar-right">
-        <div className="live-pill">
+        {running > 0 && <span className="run-count mono">{running} running</span>}
+        <div className={`live-pill${connected ? " is-live" : ""}`}>
           <span className="live-dot" />
-          <span className="mono">listening</span>
+          <span className="mono">{connected ? "live" : "offline"}</span>
         </div>
       </div>
     </header>
