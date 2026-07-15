@@ -118,7 +118,7 @@ agentglass/
 - [x] Live overview — stat cards, spend chart, recent runs
 - [x] Trace explorer + run inspector — waterfall timeline, per-step tokens/cost, I/O
 - [x] Recording proxy (Anthropic + OpenAI) — forward, stream, record
-- [ ] Context-window timeline & run diff
+- [x] Context-window chart & run diff
 - [ ] Analytics (spend/latency/heatmap) + CSV export
 - [ ] Ask-your-runs assistant
 - [ ] Single-binary distribution + Docker
