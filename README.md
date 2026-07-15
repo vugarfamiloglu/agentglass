@@ -120,7 +120,7 @@ agentglass/
 - [x] Recording proxy (Anthropic + OpenAI) — forward, stream, record
 - [x] Context-window chart & run diff
 - [x] Analytics — spend, activity heatmap, model/tool breakdown, CSV export
-- [ ] Ask-your-runs assistant
+- [x] Ask-your-runs assistant — local answers + optional LLM, AES-vaulted key
 - [ ] Single-binary distribution + Docker
 
 ## License
