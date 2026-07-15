@@ -11,12 +11,15 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import type {
+  ActivityCell,
   DashboardStats,
+  ModelStat,
   NewSpan,
   NewTrace,
   SeriesPoint,
   Span,
   SpanStatus,
+  ToolStat,
   Trace,
   TraceStatus,
 } from "./types.js";
@@ -258,6 +261,14 @@ export class Store {
     return { traces: rows.map((r) => this.rowToTrace(r)), total };
   }
 
+  /** All traces (newest first) for export — bypasses the paging cap. */
+  listAllTraces(cap = 50_000): Trace[] {
+    const rows = this.db
+      .prepare("SELECT * FROM traces ORDER BY started_at DESC LIMIT ?")
+      .all(cap) as TraceRow[];
+    return rows.map((r) => this.rowToTrace(r));
+  }
+
   deleteTrace(id: string): number {
     this.db.prepare("DELETE FROM spans WHERE trace_id = ?").run(id);
     const res = this.db.prepare("DELETE FROM traces WHERE id = ?").run(id);
@@ -328,6 +339,67 @@ export class Store {
       const r = map.get(b);
       out.push({ t: b, cost: r?.cost ?? 0, runs: r?.runs ?? 0 });
     }
+    return out;
+  }
+
+  /** Per-model rollup over LLM spans (cost, tokens, call count). */
+  byModel(sinceMs = 0): ModelStat[] {
+    const rows = this.db
+      .prepare(
+        `SELECT model,
+                COUNT(*)              AS calls,
+                COALESCE(SUM(tokens_in), 0)  AS tin,
+                COALESCE(SUM(tokens_out), 0) AS tout,
+                COALESCE(SUM(cost_usd), 0)   AS cost
+         FROM spans
+         WHERE type = 'llm' AND model IS NOT NULL AND started_at >= ?
+         GROUP BY model ORDER BY cost DESC`,
+      )
+      .all(sinceMs) as Record<string, string | number>[];
+    return rows.map((r) => ({
+      model: r.model as string,
+      calls: r.calls as number,
+      tokensIn: r.tin as number,
+      tokensOut: r.tout as number,
+      costUsd: r.cost as number,
+    }));
+  }
+
+  /** Per-tool rollup (call count, failures). */
+  byTool(sinceMs = 0): ToolStat[] {
+    const rows = this.db
+      .prepare(
+        `SELECT name AS tool,
+                COUNT(*) AS calls,
+                SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS errors
+         FROM spans
+         WHERE type = 'tool' AND started_at >= ?
+         GROUP BY name ORDER BY calls DESC`,
+      )
+      .all(sinceMs) as Record<string, string | number>[];
+    return rows.map((r) => ({
+      tool: r.tool as string,
+      calls: r.calls as number,
+      errors: (r.errors as number) ?? 0,
+    }));
+  }
+
+  /** Daily run counts over the last `days`, gap-filled for a heatmap grid. */
+  activity(days = 119): ActivityCell[] {
+    const DAY = 86_400_000;
+    const now = Date.now();
+    const since = now - days * DAY;
+    const rows = this.db
+      .prepare("SELECT started_at FROM traces WHERE started_at >= ?")
+      .all(since) as { started_at: number }[];
+    const map = new Map<number, number>();
+    for (const r of rows) {
+      const d = Math.floor(r.started_at / DAY) * DAY;
+      map.set(d, (map.get(d) ?? 0) + 1);
+    }
+    const out: ActivityCell[] = [];
+    const start = Math.floor(since / DAY) * DAY;
+    for (let d = start; d <= now; d += DAY) out.push({ day: d, count: map.get(d) ?? 0 });
     return out;
   }
 

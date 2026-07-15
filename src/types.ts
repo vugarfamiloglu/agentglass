@@ -101,3 +101,29 @@ export interface SeriesPoint {
   cost: number;
   runs: number;
 }
+
+export interface ModelStat {
+  model: string;
+  calls: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+}
+
+export interface ToolStat {
+  tool: string;
+  calls: number;
+  errors: number;
+}
+
+export interface ActivityCell {
+  day: number;
+  count: number;
+}
+
+export interface Analytics {
+  series: SeriesPoint[];
+  models: ModelStat[];
+  tools: ToolStat[];
+  activity: ActivityCell[];
+}
