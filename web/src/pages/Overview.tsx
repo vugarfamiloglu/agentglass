@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 import { api } from "../lib/api";
 import { useLive } from "../lib/live";
@@ -71,9 +72,9 @@ export function Overview() {
       <section className="panel">
         <div className="panel-head">
           <div className="panel-title">Recent runs</div>
-          <a href="/traces" className="panel-link mono">
+          <Link to="/traces" className="panel-link mono">
             all traces →
-          </a>
+          </Link>
         </div>
         <div className="runs">
           <div className="run-head mono run-cols">
@@ -85,7 +86,7 @@ export function Overview() {
             <span>WHEN</span>
           </div>
           {recent.map((t) => (
-            <div className="run-row run-cols" key={t.id}>
+            <Link to={`/traces/${t.id}`} className="run-row run-cols" key={t.id}>
               <span className="run-name">{t.name}</span>
               <span className="mono u-muted">{modelShort(t.model)}</span>
               <span>
@@ -94,7 +95,7 @@ export function Overview() {
               <span className="mono">{compact(t.tokensIn + t.tokensOut)}</span>
               <span className="mono">{money(t.costUsd)}</span>
               <span className="mono u-muted">{ago(t.startedAt)}</span>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

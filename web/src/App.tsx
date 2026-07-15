@@ -3,6 +3,8 @@ import { Route, Routes } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { Overview } from "./pages/Overview";
+import { Traces } from "./pages/Traces";
+import { TraceDetail } from "./pages/TraceDetail";
 import { Placeholder } from "./pages/Placeholder";
 
 export function App() {
@@ -13,7 +15,8 @@ export function App() {
       <main className="workbench">
         <Routes>
           <Route path="/" element={<Overview />} />
-          <Route path="/traces" element={<Placeholder title="Traces" note="The trace explorer lands next." />} />
+          <Route path="/traces" element={<Traces />} />
+          <Route path="/traces/:id" element={<TraceDetail />} />
           <Route path="/live" element={<Placeholder title="Live" note="The real-time run feed lands next." />} />
           <Route path="/analytics" element={<Placeholder title="Analytics" note="Spend, latency, and token analytics land next." />} />
           <Route path="/models" element={<Placeholder title="Models" note="Per-model breakdowns land next." />} />
