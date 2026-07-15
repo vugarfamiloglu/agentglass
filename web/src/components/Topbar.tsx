@@ -2,10 +2,12 @@ import { useLocation } from "react-router-dom";
 
 import { titleFor } from "../nav";
 import { useLive } from "../lib/live";
+import { useAssistant } from "../lib/assistant";
 
 export function Topbar() {
   const { pathname } = useLocation();
   const { connected, traces } = useLive();
+  const { open, toggle } = useAssistant();
   const running = traces.filter((t) => t.status === "running").length;
   return (
     <header className="topbar">
@@ -27,6 +29,14 @@ export function Topbar() {
           <span className="live-dot" />
           <span className="mono">{connected ? "live" : "offline"}</span>
         </div>
+        <button
+          className={`ai-toggle${open ? " is-on" : ""}`}
+          onClick={toggle}
+          aria-label="Toggle assistant"
+          title="Assistant"
+        >
+          ✦
+        </button>
       </div>
     </header>
   );

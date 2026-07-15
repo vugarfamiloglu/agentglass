@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { App } from "./App";
 import { LiveProvider } from "./lib/live";
+import { AssistantProvider } from "./lib/assistant";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -17,9 +18,11 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <LiveProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <AssistantProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </AssistantProvider>
       </LiveProvider>
     </QueryClientProvider>
   </StrictMode>,
