@@ -23,6 +23,17 @@ export function apiRoutes(store: Store, hub: Hub, version: string): Hono {
     }),
   );
 
+  api.get("/stats", (c) => {
+    const hours = Number.parseInt(c.req.query("hours") ?? "", 10);
+    const since = Number.isFinite(hours) && hours > 0 ? Date.now() - hours * 3_600_000 : 0;
+    return c.json({ ok: true, data: store.stats(since) });
+  });
+
+  api.get("/series", (c) => {
+    const hours = Number.parseInt(c.req.query("hours") ?? "24", 10);
+    return c.json({ ok: true, data: store.spendSeries(Number.isFinite(hours) ? hours : 24) });
+  });
+
   api.get("/traces", (c) => {
     const q = c.req.query();
     const toInt = (v: string | undefined) => (v ? Number.parseInt(v, 10) : undefined);

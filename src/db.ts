@@ -11,8 +11,10 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import type {
+  DashboardStats,
   NewSpan,
   NewTrace,
+  SeriesPoint,
   Span,
   SpanStatus,
   Trace,
@@ -268,6 +270,65 @@ export class Store {
 
   traceCount(): number {
     return (this.db.prepare("SELECT COUNT(*) AS n FROM traces").get() as { n: number }).n;
+  }
+
+  // ---- analytics ----
+
+  stats(sinceMs = 0): DashboardStats {
+    const row = this.db
+      .prepare(
+        `SELECT
+           COUNT(*) AS runs,
+           SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) AS errors,
+           SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) AS running,
+           COALESCE(SUM(cost_usd), 0)     AS cost,
+           COALESCE(SUM(tokens_in), 0)    AS tin,
+           COALESCE(SUM(tokens_out), 0)   AS tout,
+           COALESCE(SUM(tokens_cache), 0) AS tcache,
+           COALESCE(SUM(tool_count), 0)   AS tools,
+           COALESCE(AVG(duration_ms), 0)  AS avgdur
+         FROM traces WHERE started_at >= ?`,
+      )
+      .get(sinceMs) as Record<string, number>;
+    return {
+      runs: row.runs ?? 0,
+      errors: row.errors ?? 0,
+      running: row.running ?? 0,
+      costUsd: row.cost ?? 0,
+      tokensIn: row.tin ?? 0,
+      tokensOut: row.tout ?? 0,
+      tokensCache: row.tcache ?? 0,
+      toolCalls: row.tools ?? 0,
+      avgDurationMs: Math.round(row.avgdur ?? 0),
+    };
+  }
+
+  /** Hourly cost + run counts over the last `hours`, gap-filled for charting.
+   *  Bucketing is done in JS to avoid SQLite integer/real division ambiguity. */
+  spendSeries(hours = 24): SeriesPoint[] {
+    const bucketMs = 3_600_000;
+    const now = Date.now();
+    const since = now - hours * bucketMs;
+    const rows = this.db
+      .prepare("SELECT started_at, cost_usd FROM traces WHERE started_at >= ?")
+      .all(since) as { started_at: number; cost_usd: number }[];
+
+    const map = new Map<number, { cost: number; runs: number }>();
+    for (const r of rows) {
+      const b = Math.floor(r.started_at / bucketMs) * bucketMs;
+      const cur = map.get(b) ?? { cost: 0, runs: 0 };
+      cur.cost += r.cost_usd;
+      cur.runs += 1;
+      map.set(b, cur);
+    }
+
+    const out: SeriesPoint[] = [];
+    const start = Math.floor(since / bucketMs) * bucketMs;
+    for (let b = start; b <= now; b += bucketMs) {
+      const r = map.get(b);
+      out.push({ t: b, cost: r?.cost ?? 0, runs: r?.runs ?? 0 });
+    }
+    return out;
   }
 
   // ---- mappers ----

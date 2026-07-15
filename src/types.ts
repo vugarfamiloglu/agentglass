@@ -83,3 +83,21 @@ export type LiveEvent =
   | { type: "trace.update"; trace: Trace }
   | { type: "trace.end"; trace: Trace }
   | { type: "span.add"; span: Span };
+
+export interface DashboardStats {
+  runs: number;
+  errors: number;
+  running: number;
+  costUsd: number;
+  tokensIn: number;
+  tokensOut: number;
+  tokensCache: number;
+  toolCalls: number;
+  avgDurationMs: number;
+}
+
+export interface SeriesPoint {
+  t: number;
+  cost: number;
+  runs: number;
+}
