@@ -21,8 +21,29 @@ export async function getJson<T>(path: string): Promise<T> {
   return unwrap<T>(await fetch(path));
 }
 
+export async function postJson<T>(path: string, body: unknown): Promise<T> {
+  return unwrap<T>(
+    await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
 export async function delJson<T>(path: string): Promise<T> {
   return unwrap<T>(await fetch(path, { method: "DELETE" }));
+}
+
+export interface AssistantReply {
+  answer: string;
+  source: "local" | "llm";
+}
+
+export interface AssistantSettings {
+  assistantConfigured: boolean;
+  provider: string;
+  model: string;
 }
 
 export interface Health {
@@ -61,4 +82,10 @@ export const api = {
   trace: (id: string) => getJson<Trace>(`/api/traces/${id}`),
   spans: (id: string) => getJson<{ trace: Trace; spans: Span[] }>(`/api/traces/${id}/spans`),
   deleteTrace: (id: string) => delJson<{ deleted: boolean }>(`/api/traces/${id}`),
+  ask: (message: string, traceId?: string) =>
+    postJson<AssistantReply>("/api/assistant", { message, traceId }),
+  settings: () => getJson<AssistantSettings>("/api/settings"),
+  setAssistant: (key: string, provider: string, model: string) =>
+    postJson<{ configured: boolean }>("/api/settings/assistant", { key, provider, model }),
+  clearAssistant: () => delJson<{ configured: boolean }>("/api/settings/assistant"),
 };
