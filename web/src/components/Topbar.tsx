@@ -7,7 +7,7 @@ export function Topbar() {
   return (
     <header className="topbar">
       <div className="crumbs">
-        <span className="crumb mono">GLASSWING</span>
+        <span className="crumb mono">AGENTGLASS</span>
         <span className="crumb-sep">›</span>
         <span className="crumb-title">{titleFor(pathname)}</span>
       </div>

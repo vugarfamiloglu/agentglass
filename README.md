@@ -1,11 +1,11 @@
 <div align="center">
 
-# ✦ Glasswing
+# ✦ AgentGlass
 
 ### The glass box for your AI agents.
 
 **Capture, inspect, and replay every agent run — no SDK, no code changes.**
-Point your agent's base URL at Glasswing and see every LLM call, tool
+Point your agent's base URL at AgentGlass and see every LLM call, tool
 invocation, token, and dollar it spends. Live.
 
 ![status](https://img.shields.io/badge/status-alpha-38e1c8?style=for-the-badge)
@@ -24,11 +24,11 @@ you \$2.30 — and you have **no idea** what happened inside. Which step blew th
 context window? Which tool call failed and got silently retried? Where did the
 money go? Agents are black boxes.
 
-**Glasswing makes them glass.** It sits between your agent and the model provider,
+**AgentGlass makes them glass.** It sits between your agent and the model provider,
 records everything, and streams it into a dashboard you can actually read.
 
 ```
-   your agent  ──▶  Glasswing  ──▶  Anthropic / OpenAI
+   your agent  ──▶  AgentGlass  ──▶  Anthropic / OpenAI
                         │
                         ▼
                  records + streams
@@ -62,14 +62,14 @@ records everything, and streams it into a dashboard you can actually read.
 | 📈 **Analytics** | Spend and latency over time, breakdowns by model and tool, an activity heatmap. |
 | 🤖 **Ask your runs** | A built-in assistant that answers questions about your traces in plain language. |
 
-> Glasswing is under active, in-the-open development — features land commit by
+> AgentGlass is under active, in-the-open development — features land commit by
 > commit. See the [roadmap](#roadmap) for what's live and what's next.
 
 ## Quickstart
 
 ```bash
-git clone https://github.com/vugarfamiloglu/glasswing.git
-cd glasswing
+git clone https://github.com/vugarfamiloglu/agentglass.git
+cd agentglass
 npm install && npm --prefix web install
 npm run dev
 ```
@@ -85,7 +85,7 @@ export ANTHROPIC_BASE_URL=http://localhost:4319
 export OPENAI_BASE_URL=http://localhost:4319/v1
 ```
 
-Run your agent as usual — every call now shows up in Glasswing.
+Run your agent as usual — every call now shows up in AgentGlass.
 
 ## 🛠 Tech Stack
 
@@ -101,7 +101,7 @@ Run your agent as usual — every call now shows up in Glasswing.
 ## Architecture
 
 ```
-glasswing/
+agentglass/
   src/            server (Node + Hono + node:sqlite)
     index.ts        entry — API + WebSocket + proxy + SPA hosting
     db.ts           trace store (traces → spans, WAL, rollups)

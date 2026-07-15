@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Glasswing — the glass box for your AI agents.
+ * AgentGlass — the glass box for your AI agents.
  *
  * One process serves three things on one port: the dashboard SPA, the REST/WS
  * API, and (in later phases) the recording proxy. Point your agent's base URL
- * at Glasswing and every run shows up live in the dashboard.
+ * at AgentGlass and every run shows up live in the dashboard.
  */
 import { serve } from "@hono/node-server";
 import { createNodeWebSocket } from "@hono/node-ws";
@@ -52,7 +52,7 @@ app.use("/*", serveDist(cfg.webDist));
 const server = serve({ fetch: app.fetch, port: cfg.port }, (info) => {
   const url = `http://localhost:${info.port}`;
   process.stdout.write(
-    `\n  ✦ Glasswing v${VERSION}\n` +
+    `\n  ✦ AgentGlass v${VERSION}\n` +
       `  dashboard   ${url}\n` +
       `  proxy       set ANTHROPIC_BASE_URL / OPENAI_BASE_URL to ${url}\n` +
       `  traces      ${store.traceCount()} stored · ${cfg.simulate ? "simulator on" : "simulator off"}\n\n`,

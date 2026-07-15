@@ -1,6 +1,6 @@
 /**
  * Minimal static file server for the built dashboard, with SPA fallback. Kept
- * dependency-free and cwd-independent so the single `glasswing` binary serves
+ * dependency-free and cwd-independent so the single `agentglass` binary serves
  * its bundled UI no matter where it is launched from.
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -41,7 +41,7 @@ export function serveDist(webDist: string) {
     if (existsSync(index)) return send(c, index);
 
     return c.text(
-      "Glasswing dashboard is not built. Run `npm run build`, or use the Vite dev server during development.",
+      "AgentGlass dashboard is not built. Run `npm run build`, or use the Vite dev server during development.",
       200,
     );
   };

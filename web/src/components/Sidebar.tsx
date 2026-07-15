@@ -9,7 +9,7 @@ export function Sidebar() {
       <div className="brand">
         <BrandMark />
         <span className="brand-word">
-          Glass<b>wing</b>
+          Agent<b>Glass</b>
         </span>
       </div>
 

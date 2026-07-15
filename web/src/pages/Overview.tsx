@@ -15,7 +15,7 @@ export function Overview() {
         <h1 className="hero-title">
           Your agents are black boxes.
           <br />
-          <span className="hero-accent">Glasswing makes them glass.</span>
+          <span className="hero-accent">AgentGlass makes them glass.</span>
         </h1>
         <p className="hero-sub">
           Capture every LLM call, tool invocation, token, and dollar your agents spend — then
@@ -32,7 +32,7 @@ export function Overview() {
           </div>
         </div>
         <p className="connect-lead">
-          Set your agent's base URL to Glasswing. It transparently forwards to Anthropic or OpenAI
+          Set your agent's base URL to AgentGlass. It transparently forwards to Anthropic or OpenAI
           and records everything in between.
         </p>
         <pre className="code-block mono">

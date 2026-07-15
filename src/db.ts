@@ -103,7 +103,7 @@ export class Store {
 
   constructor(dataDir: string) {
     mkdirSync(dataDir, { recursive: true });
-    this.db = new DatabaseSync(join(dataDir, "glasswing.db"));
+    this.db = new DatabaseSync(join(dataDir, "agentglass.db"));
     this.db.exec("PRAGMA journal_mode = WAL;");
     this.db.exec("PRAGMA foreign_keys = ON;");
     this.db.exec(SCHEMA);

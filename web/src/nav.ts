@@ -43,5 +43,5 @@ export function titleFor(path: string): string {
     }
   }
   if (path.startsWith("/traces/")) return "Trace detail";
-  return "Glasswing";
+  return "AgentGlass";
 }

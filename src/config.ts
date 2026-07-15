@@ -1,7 +1,7 @@
 /**
  * Runtime configuration, read once from the environment at boot.
  *
- * Glasswing runs as a single local process: it serves the dashboard SPA, the
+ * AgentGlass runs as a single local process: it serves the dashboard SPA, the
  * REST/WS API, and the recording proxy — all on one port.
  */
 import { fileURLToPath } from "node:url";
@@ -35,10 +35,10 @@ function envBool(key: string, fallback: boolean): boolean {
 
 export function loadConfig(): Config {
   return {
-    port: envInt("GLASSWING_PORT", 4319),
-    dataDir: process.env.GLASSWING_DATA ?? resolve(process.cwd(), "data"),
+    port: envInt("AGENTGLASS_PORT", 4319),
+    dataDir: process.env.AGENTGLASS_DATA ?? resolve(process.cwd(), "data"),
     // dist/index.js -> ../web/dist
-    webDist: process.env.GLASSWING_WEB ?? resolve(HERE, "..", "web", "dist"),
-    simulate: envBool("GLASSWING_SIMULATE", true),
+    webDist: process.env.AGENTGLASS_WEB ?? resolve(HERE, "..", "web", "dist"),
+    simulate: envBool("AGENTGLASS_SIMULATE", true),
   };
 }

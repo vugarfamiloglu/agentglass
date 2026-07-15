@@ -1,4 +1,4 @@
-/** Typed client for the Glasswing API. Every response uses the `{ ok, data }`
+/** Typed client for the AgentGlass API. Every response uses the `{ ok, data }`
  *  / `{ ok, error }` envelope, which these helpers unwrap. */
 
 export interface Envelope<T> {

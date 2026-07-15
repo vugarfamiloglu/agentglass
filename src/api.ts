@@ -15,7 +15,7 @@ export function apiRoutes(store: Store, hub: Hub, version: string): Hono {
     c.json({
       ok: true,
       data: {
-        service: "glasswing",
+        service: "agentglass",
         version,
         traces: store.traceCount(),
         clients: hub.size,
