@@ -114,7 +114,8 @@ agentglass/
 ## Roadmap
 
 - [x] Trace store, live hub, dashboard shell
-- [ ] Trace simulator (rich demo data out of the box)
+- [x] Trace simulator — a week of realistic runs, streamed live
+- [x] Live overview — stat cards, spend chart, recent runs
 - [ ] Recording proxy (Anthropic + OpenAI)
 - [ ] Trace explorer + run inspector (tool tree, token/cost meters)
 - [ ] Context-window timeline & run diff
