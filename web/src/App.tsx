@@ -7,6 +7,9 @@ import { Traces } from "./pages/Traces";
 import { TraceDetail } from "./pages/TraceDetail";
 import { Connect } from "./pages/Connect";
 import { Diff } from "./pages/Diff";
+import { Analytics } from "./pages/Analytics";
+import { Models } from "./pages/Models";
+import { Tools } from "./pages/Tools";
 import { Placeholder } from "./pages/Placeholder";
 
 export function App() {
@@ -23,9 +26,9 @@ export function App() {
           <Route path="/diff/:a" element={<Diff />} />
           <Route path="/diff/:a/:b" element={<Diff />} />
           <Route path="/live" element={<Placeholder title="Live" note="The real-time run feed lands next." />} />
-          <Route path="/analytics" element={<Placeholder title="Analytics" note="Spend, latency, and token analytics land next." />} />
-          <Route path="/models" element={<Placeholder title="Models" note="Per-model breakdowns land next." />} />
-          <Route path="/tools" element={<Placeholder title="Tools" note="Per-tool breakdowns land next." />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/models" element={<Models />} />
+          <Route path="/tools" element={<Tools />} />
           <Route path="/connect" element={<Connect />} />
           <Route path="/settings" element={<Placeholder title="Settings" note="Retention, pricing, and the assistant key land next." />} />
           <Route path="*" element={<Placeholder title="Not found" note="No page at this address." />} />

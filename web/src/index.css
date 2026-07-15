@@ -1275,3 +1275,119 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Analytics ------------------------------------------------------------ */
+
+.an-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 1000px) {
+  .an-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-table {
+  display: flex;
+  flex-direction: column;
+}
+.st-head {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-subtle);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.st-row {
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.st-row:last-child {
+  border-bottom: 0;
+}
+.model-cols {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 0.9fr 0.9fr 1.4fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+}
+.tool-cols {
+  display: grid;
+  grid-template-columns: 1.6fr 0.7fr 0.7fr 1.6fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+}
+.st-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.st-bar-track {
+  height: 7px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.st-bar {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.bar-cost {
+  background: linear-gradient(90deg, var(--violet), var(--cyan));
+}
+.bar-tool {
+  background: var(--cyan);
+}
+.st-empty {
+  padding: 24px 16px;
+}
+.u-rose {
+  color: var(--rose);
+}
+
+/* ---- Activity heatmap ----------------------------------------------------- */
+
+.hm-wrap {
+  padding: 16px;
+  overflow-x: auto;
+}
+.heatmap {
+  display: flex;
+  gap: 3px;
+  min-width: min-content;
+}
+.hm-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hm-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--surface-3);
+}
+.hm-empty {
+  background: transparent;
+}
+.hm-l0 {
+  background: var(--surface-3);
+}
+.hm-l1 {
+  background: color-mix(in srgb, var(--cyan) 28%, var(--surface-3));
+}
+.hm-l2 {
+  background: color-mix(in srgb, var(--cyan) 52%, var(--surface-2));
+}
+.hm-l3 {
+  background: color-mix(in srgb, var(--cyan) 75%, transparent);
+}
+.hm-l4 {
+  background: var(--cyan);
+}

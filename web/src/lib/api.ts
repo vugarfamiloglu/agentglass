@@ -1,7 +1,7 @@
 /** Typed client for the AgentGlass API. Every response uses the `{ ok, data }`
  *  / `{ ok, error }` envelope, which these helpers unwrap. */
 
-import type { DashboardStats, SeriesPoint, Span, Trace } from "./types";
+import type { Analytics, DashboardStats, SeriesPoint, Span, Trace } from "./types";
 
 export interface Envelope<T> {
   ok: boolean;
@@ -56,6 +56,7 @@ export const api = {
   health: () => getJson<Health>("/api/health"),
   stats: (hours?: number) => getJson<DashboardStats>(`/api/stats${qs({ hours })}`),
   series: (hours = 24) => getJson<SeriesPoint[]>(`/api/series${qs({ hours })}`),
+  analytics: (hours = 24) => getJson<Analytics>(`/api/analytics${qs({ hours })}`),
   traces: (query: TracesQuery = {}) => getJson<TracePage>(`/api/traces${qs({ ...query })}`),
   trace: (id: string) => getJson<Trace>(`/api/traces/${id}`),
   spans: (id: string) => getJson<{ trace: Trace; spans: Span[] }>(`/api/traces/${id}/spans`),
