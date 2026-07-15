@@ -1,13 +1,108 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { useLive } from "../lib/live";
+import { ago, compact, duration, modelShort, money } from "../lib/format";
+import type { Trace } from "../lib/types";
+import { StatCard } from "../components/StatCard";
+import { SpendChart } from "../components/SpendChart";
+import { StatusPill } from "../components/StatusPill";
 
-// Phase 0 overview: a connect hero + live health. The full dashboard (stats,
-// charts, recent runs, and the AI rail) replaces this once traces flow in.
+function mergeRuns(live: Trace[], page: Trace[]): Trace[] {
+  const seen = new Set<string>();
+  const out: Trace[] = [];
+  for (const t of [...live, ...page]) {
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    out.push(t);
+  }
+  return out.sort((a, b) => b.startedAt - a.startedAt).slice(0, 13);
+}
+
 export function Overview() {
-  const health = useQuery({ queryKey: ["health"], queryFn: api.health, refetchInterval: 4000 });
-  const traces = health.data?.traces ?? 0;
+  const stats = useQuery({ queryKey: ["stats"], queryFn: () => api.stats() });
+  const series = useQuery({ queryKey: ["series"], queryFn: () => api.series(24) });
+  const page = useQuery({ queryKey: ["traces", "recent"], queryFn: () => api.traces({ limit: 12 }) });
+  const live = useLive();
 
+  const s = stats.data;
+  const errorRate = s && s.runs > 0 ? (s.errors / s.runs) * 100 : 0;
+  const recent = mergeRuns(live.traces, page.data?.traces ?? []);
+
+  if (stats.isSuccess && s && s.runs === 0) {
+    return <EmptyConnect />;
+  }
+
+  return (
+    <div className="page">
+      <div className="page-head between">
+        <h1 className="page-title">Overview</h1>
+        <span className="head-note mono">all runs · updates live</span>
+      </div>
+
+      <div className="stat-grid">
+        <StatCard label="RUNS" value={compact(s?.runs ?? 0)} sub={`${s?.running ?? 0} running now`} accent="cyan" />
+        <StatCard label="SPEND" value={money(s?.costUsd ?? 0)} sub="all-time" accent="violet" />
+        <StatCard
+          label="TOKENS"
+          value={compact((s?.tokensIn ?? 0) + (s?.tokensOut ?? 0))}
+          sub={`${compact(s?.tokensCache ?? 0)} cached`}
+        />
+        <StatCard label="TOOL CALLS" value={compact(s?.toolCalls ?? 0)} />
+        <StatCard
+          label="ERROR RATE"
+          value={`${errorRate.toFixed(1)}%`}
+          sub={`${s?.errors ?? 0} failed`}
+          accent={errorRate > 10 ? "rose" : "neutral"}
+        />
+        <StatCard label="AVG LATENCY" value={duration(s?.avgDurationMs ?? 0)} accent="amber" />
+      </div>
+
+      <section className="panel section-block">
+        <div className="panel-head">
+          <div className="panel-title">Spend</div>
+          <div className="panel-note mono">last 24h · hourly · USD</div>
+        </div>
+        <div className="chart-wrap">
+          <SpendChart points={series.data ?? []} />
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div className="panel-title">Recent runs</div>
+          <a href="/traces" className="panel-link mono">
+            all traces →
+          </a>
+        </div>
+        <div className="runs">
+          <div className="run-head mono run-cols">
+            <span>RUN</span>
+            <span>MODEL</span>
+            <span>STATUS</span>
+            <span>TOKENS</span>
+            <span>COST</span>
+            <span>WHEN</span>
+          </div>
+          {recent.map((t) => (
+            <div className="run-row run-cols" key={t.id}>
+              <span className="run-name">{t.name}</span>
+              <span className="mono u-muted">{modelShort(t.model)}</span>
+              <span>
+                <StatusPill status={t.status} />
+              </span>
+              <span className="mono">{compact(t.tokensIn + t.tokensOut)}</span>
+              <span className="mono">{money(t.costUsd)}</span>
+              <span className="mono u-muted">{ago(t.startedAt)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function EmptyConnect() {
   return (
     <div className="page">
       <section className="hero">
@@ -18,23 +113,14 @@ export function Overview() {
           <span className="hero-accent">AgentGlass makes them glass.</span>
         </h1>
         <p className="hero-sub">
-          Capture every LLM call, tool invocation, token, and dollar your agents spend — then
-          inspect and replay the whole run. No SDK, no code changes: just point your agent here.
+          Point your agent's base URL at AgentGlass and every LLM call, tool invocation, token, and
+          dollar shows up here. Waiting for your first run…
         </p>
       </section>
-
       <section className="connect-card panel">
         <div className="panel-head">
           <div className="panel-title">Start capturing</div>
-          <div className={`live-pill${health.isSuccess ? " is-live" : ""}`}>
-            <span className="live-dot" />
-            <span className="mono">{health.isSuccess ? "server online" : "connecting…"}</span>
-          </div>
         </div>
-        <p className="connect-lead">
-          Set your agent's base URL to AgentGlass. It transparently forwards to Anthropic or OpenAI
-          and records everything in between.
-        </p>
         <pre className="code-block mono">
           <span className="code-comment"># Claude / Anthropic SDK</span>
           {"\n"}
@@ -44,11 +130,6 @@ export function Overview() {
           {"\n"}
           <span className="code-key">export</span> OPENAI_BASE_URL=http://localhost:4319/v1
         </pre>
-        <div className="connect-foot mono">
-          {traces > 0
-            ? `${traces} trace${traces === 1 ? "" : "s"} captured so far`
-            : "waiting for your first trace…"}
-        </div>
       </section>
     </div>
   );

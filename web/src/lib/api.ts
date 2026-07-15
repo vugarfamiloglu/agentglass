@@ -1,6 +1,8 @@
 /** Typed client for the AgentGlass API. Every response uses the `{ ok, data }`
  *  / `{ ok, error }` envelope, which these helpers unwrap. */
 
+import type { DashboardStats, SeriesPoint, Span, Trace } from "./types";
+
 export interface Envelope<T> {
   ok: boolean;
   data?: T;
@@ -30,6 +32,32 @@ export interface Health {
   clients: number;
 }
 
+export interface TracePage {
+  traces: Trace[];
+  total: number;
+}
+
+export interface TracesQuery {
+  source?: string;
+  status?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}
+
+function qs(params: Record<string, string | number | undefined>): string {
+  const parts = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== "")
+    .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`);
+  return parts.length ? `?${parts.join("&")}` : "";
+}
+
 export const api = {
   health: () => getJson<Health>("/api/health"),
+  stats: (hours?: number) => getJson<DashboardStats>(`/api/stats${qs({ hours })}`),
+  series: (hours = 24) => getJson<SeriesPoint[]>(`/api/series${qs({ hours })}`),
+  traces: (query: TracesQuery = {}) => getJson<TracePage>(`/api/traces${qs({ ...query })}`),
+  trace: (id: string) => getJson<Trace>(`/api/traces/${id}`),
+  spans: (id: string) => getJson<{ trace: Trace; spans: Span[] }>(`/api/traces/${id}/spans`),
+  deleteTrace: (id: string) => delJson<{ deleted: boolean }>(`/api/traces/${id}`),
 };
