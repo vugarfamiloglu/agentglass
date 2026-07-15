@@ -5,6 +5,7 @@ import { Topbar } from "./components/Topbar";
 import { Overview } from "./pages/Overview";
 import { Traces } from "./pages/Traces";
 import { TraceDetail } from "./pages/TraceDetail";
+import { Connect } from "./pages/Connect";
 import { Placeholder } from "./pages/Placeholder";
 
 export function App() {
@@ -21,7 +22,7 @@ export function App() {
           <Route path="/analytics" element={<Placeholder title="Analytics" note="Spend, latency, and token analytics land next." />} />
           <Route path="/models" element={<Placeholder title="Models" note="Per-model breakdowns land next." />} />
           <Route path="/tools" element={<Placeholder title="Tools" note="Per-tool breakdowns land next." />} />
-          <Route path="/connect" element={<Placeholder title="Connect" note="Copy-paste setup for the recording proxy lands next." />} />
+          <Route path="/connect" element={<Connect />} />
           <Route path="/settings" element={<Placeholder title="Settings" note="Retention, pricing, and the assistant key land next." />} />
           <Route path="*" element={<Placeholder title="Not found" note="No page at this address." />} />
         </Routes>

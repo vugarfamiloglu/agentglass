@@ -987,3 +987,72 @@ a {
   margin: 0;
   white-space: pre;
 }
+
+/* ---- Connect -------------------------------------------------------------- */
+
+.connect-intro {
+  color: var(--text-muted);
+  font-size: 14px;
+  max-width: 640px;
+  margin: 0 0 20px;
+}
+
+.connect-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+@media (max-width: 900px) {
+  .connect-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.connect-panel {
+  padding-bottom: 8px;
+}
+
+.prov-badge {
+  font-size: 10px;
+  color: var(--text-subtle);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.connect-note {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 14px 18px 4px;
+  margin: 0;
+}
+
+.code-str {
+  color: var(--cyan);
+}
+
+.flow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 18px;
+  font-size: 13px;
+}
+.flow-node {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 14px;
+  color: var(--text-muted);
+}
+.flow-glass {
+  border-color: color-mix(in srgb, var(--cyan) 40%, var(--border));
+  color: var(--cyan);
+  background: var(--cyan-soft);
+}
+.flow-arrow {
+  color: var(--text-subtle);
+}
