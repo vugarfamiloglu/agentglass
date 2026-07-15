@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { ago, compact, duration, modelShort, money } from "../lib/format";
 import type { Span } from "../lib/types";
 import { StatusPill } from "../components/StatusPill";
+import { ContextChart } from "../components/ContextChart";
 
 function pretty(v: unknown): string {
   if (v == null) return "—";
@@ -108,7 +109,12 @@ export function TraceDetail() {
         </Link>
         <div className="between">
           <h1 className="page-title">{trace.name}</h1>
-          <StatusPill status={trace.status} />
+          <div className="detail-actions">
+            <Link to={`/diff/${trace.id}`} className="mini-link mono">
+              compare ⇄
+            </Link>
+            <StatusPill status={trace.status} />
+          </div>
         </div>
         <div className="detail-meta mono">
           {modelShort(trace.model)} · {trace.source} · started {ago(traceStart)}
@@ -125,6 +131,8 @@ export function TraceDetail() {
       </div>
 
       {trace.error && <div className="trace-error mono">{trace.error}</div>}
+
+      <ContextChart spans={spans} />
 
       <section className="panel">
         <div className="panel-head">
