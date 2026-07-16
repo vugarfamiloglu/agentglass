@@ -1560,6 +1560,18 @@ a {
     opacity: 1;
   }
 }
+/* A caret on the tail of an answer that's still being written. */
+.msg-body.is-streaming > :last-child::after {
+  content: "▍";
+  color: var(--cyan);
+  margin-left: 1px;
+  animation: blink 1s steps(2, start) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg-body.is-streaming > :last-child::after {
+    animation: none;
+  }
+}
 .rail-suggest {
   display: flex;
   flex-wrap: wrap;
@@ -1709,4 +1721,107 @@ a {
 }
 .pw-eye:hover {
   color: var(--cyan);
+}
+.set-stat {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+.btn-ghost.is-danger {
+  color: var(--rose);
+  border-color: color-mix(in srgb, var(--rose) 30%, var(--border));
+}
+.btn-ghost.is-danger:hover {
+  background: var(--rose-soft);
+  border-color: var(--rose);
+}
+
+/* ---- Confirm modal -------------------------------------------------------- */
+
+.modal-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 76%, transparent);
+  backdrop-filter: blur(3px);
+  animation: veil-in 140ms ease-out;
+}
+.modal {
+  width: min(440px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 55%);
+  overflow: hidden;
+  animation: modal-in 170ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* A hairline of the brand gradient, turning warm when the action bites. */
+.modal::before {
+  content: "";
+  display: block;
+  height: 2px;
+  background: var(--brand-grad);
+}
+.modal.is-danger::before {
+  background: linear-gradient(135deg, var(--rose), var(--amber));
+}
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 18px 20px 0;
+}
+.modal-body {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 8px 20px 2px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px 18px;
+}
+.btn-danger {
+  background: var(--rose);
+  border: none;
+  color: #1c0610;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.btn-danger:hover {
+  filter: brightness(1.08);
+}
+.modal button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+@keyframes veil-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-veil,
+  .modal {
+    animation: none;
+  }
 }
