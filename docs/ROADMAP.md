@@ -14,46 +14,53 @@ Legend: **P0** = biggest product/launch impact · **P1** = polish · **P2** = de
   `src/providers.ts`; the proxy is format-blind.
 - **Model catalog.** ~90 models across ten providers, longest-prefix matched,
   with cache reads and writes priced separately. `GET /api/models` feeds the UI.
+- **Assistant providers.** Thirteen plus a custom endpoint (`src/llm.ts`), keys
+  stored per provider, keyless local Ollama / LM Studio, and "Load models" that
+  asks the provider what it serves instead of trusting a hardcoded list.
 - **Retention & data management.** Configurable window swept on boot and every
   six hours, database-size readout, clear-all — behind a `ConfirmModal`.
 - **Streaming assistant.** `POST /api/assistant/stream` (SSE); `ask()` is now a
   collector over `askStream()`, so there's one code path.
+- **Demo GIF.** `docs/demo.gif` at the top of the README; `scripts/record-demo.mjs`
+  re-cuts it (Playwright → webm → ffmpeg palettegen).
+- **Read-only mode.** `AGENTGLASS_READONLY=1` for a public demo: no proxy, no
+  writes, no model-discovery (it fetches a caller-supplied URL). The dashboard
+  reads the flag and drops the controls that would 403.
+- **Packaging & CI.** `prepublishOnly` + repository metadata; `.github/workflows/`
+  checks every push and publishes a multi-arch GHCR image on tag; `deploy/fly.toml`
+  for the demo.
 
 ---
 
-## P0 — Launch
+## P0 — Launch (all blocked on an account, not on code)
 
-### 1. Animated demo GIF in the README
-**Goal:** A ~12s screencast at the top of the README.
-**Why:** The single biggest virality asset — a moving demo sells the tool in two
-seconds. Static screenshots are good; a GIF is better.
-**Approach:** Record the live dashboard (runs streaming) → open a trace (waterfall
-+ context chart) → ask the assistant. Capture with a screen recorder, optimize
-with `gifski`/`ffmpeg` to a tight loop. Embed as `docs/demo.gif`.
-**Acceptance:** `docs/demo.gif` renders at the top of the README.
+Everything below is prepared and verified locally. What's left needs credentials
+this repo shouldn't hold.
 
-### 2. Publish `npx agentglass` + a container image
-**Goal:** `npx agentglass` runs it with no clone; `docker pull ghcr.io/…/agentglass`.
-**Why:** Frictionless "try" = adoption. `npx agentglass` is a killer install line.
-**Approach:** `prepublishOnly: npm run build`; `files` already set; confirm the npm
-name is free (flip if not). GH Actions to build + push the Docker image to GHCR on
-tag. (The Docker build is verified-by-equivalence today; actually build it once the
-Docker daemon is up.)
-**Acceptance:** `npx agentglass@latest` starts the server; image pullable.
+### 1. Unblock GitHub Actions
+**Status:** The CI workflow is committed and correct, but the first run never
+started: *"the job was not started because your account is locked due to a
+billing issue"*. The whole sequence — `npm ci` (both lockfiles), typecheck, 12
+tests, build, and the health smoke-check — passes locally on a clean install.
+**Do:** Sort out GitHub billing, then re-run the workflow.
 
-### 3. Hosted read-only demo
-**Goal:** A public URL running the simulator (proxy disabled) so people try
-without installing.
-**Why:** HN/Twitter visitors click a link, not `git clone`. Huge top-of-funnel.
-**Approach:** Deploy to Fly/Render/a small VPS with `AGENTGLASS_SIMULATE=1` and the
-`/v1/*` proxy routes disabled (read-only). Link from the README.
-**Acceptance:** A live demo URL that mirrors local, using seeded data.
+### 2. `npm publish`
+**Status:** The name `agentglass` is free. The tarball (140 kB, `dist/` +
+`web/dist/`) was packed, installed into a clean project, and the bin ran: it
+boots, serves the dashboard out of the package, and the proxy forwards upstream.
+**Do:** `npm login && npm publish` — `prepublishOnly` builds first.
 
-### 4. CI (GitHub Actions)
-**Goal:** typecheck + test + build on every push / PR.
-**Approach:** `.github/workflows/ci.yml` — Node 24: `npm ci`, `npm --prefix web
-ci`, `npm run typecheck`, `npm test`, `npm run build`.
-**Acceptance:** A green check on commits; red on breakage.
+### 3. Deploy the demo
+**Status:** `deploy/fly.toml` is read-only + simulator + no volume, so every cold
+start seeds a fresh week and it can't grow. Read-only mode is verified: writes
+403, the SSRF vector is closed, `/v1/*` explains itself, and the assistant still
+answers for free.
+**Do:** `fly deploy --config deploy/fly.toml`, then link it from the README.
+
+### 4. Push the container image
+**Status:** `release.yml` builds multi-arch to GHCR on tag and smoke-tests the
+published image. Never built locally — the Docker daemon was down all session.
+**Do:** Tag a release once Actions runs (`git tag v0.1.0 && git push --tags`).
 
 ---
 
@@ -149,10 +156,10 @@ the first ~32 KB with a `"truncated": true` marker.
 
 ## Suggested order
 
-1. **The launch trio** (#1 GIF, #2 npx/Docker, #3 hosted demo) + **#4 CI** —
-   the product is ready; this is reach.
+1. **Unblock the account** (#1), then #2 publish, #3 deploy, #4 tag. These are
+   minutes of work each once the credentials are there.
 2. **#5 screenshots** — cheap, and they're the first thing a visitor reads.
 3. Then polish (#6 light theme, #7 ⌘K, #8 provider chips) and depth as time allows.
 
-Once the launch trio is done it's ready for **Show HN + r/selfhosted +
-r/LocalLLaMA** (Tue–Thu, 8–10 AM PT).
+Once #1–#4 land it's ready for **Show HN + r/selfhosted + r/LocalLLaMA**
+(Tue–Thu, 8–10 AM PT).
