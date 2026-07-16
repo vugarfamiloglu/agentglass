@@ -599,7 +599,7 @@ a {
 
 .run-cols {
   display: grid;
-  grid-template-columns: 2.4fr 1fr 0.8fr 0.8fr 0.8fr 0.9fr;
+  grid-template-columns: 2.1fr 1.3fr 0.8fr 0.8fr 0.8fr 0.9fr;
   gap: 12px;
   align-items: center;
   padding: 10px 16px;
@@ -734,7 +734,7 @@ a {
 
 .tr-cols {
   display: grid;
-  grid-template-columns: 2.6fr 1fr 0.8fr 0.6fr 0.8fr 0.8fr 0.9fr 0.9fr;
+  grid-template-columns: 2.2fr 1.4fr 0.8fr 0.6fr 0.8fr 0.8fr 0.9fr 0.9fr;
   gap: 12px;
   align-items: center;
   padding: 10px 16px;
@@ -1721,6 +1721,12 @@ a {
 }
 .pw-eye:hover {
   color: var(--cyan);
+}
+.model-cell {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .set-stat {
   font-size: 11px;

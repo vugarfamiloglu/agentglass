@@ -88,7 +88,7 @@ export function Overview() {
           {recent.map((t) => (
             <Link to={`/traces/${t.id}`} className="run-row run-cols" key={t.id}>
               <span className="run-name">{t.name}</span>
-              <span className="mono u-muted">{modelShort(t.model)}</span>
+              <span className="mono u-muted model-cell">{modelShort(t.model)}</span>
               <span>
                 <StatusPill status={t.status} />
               </span>

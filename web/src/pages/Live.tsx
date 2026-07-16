@@ -33,7 +33,7 @@ export function Live() {
           traces.map((t) => (
             <Link to={`/traces/${t.id}`} key={t.id} className="run-row run-cols">
               <span className="run-name">{t.name}</span>
-              <span className="mono u-muted">{modelShort(t.model)}</span>
+              <span className="mono u-muted model-cell">{modelShort(t.model)}</span>
               <span>
                 <StatusPill status={t.status} />
               </span>
