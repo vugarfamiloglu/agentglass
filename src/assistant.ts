@@ -127,83 +127,195 @@ function systemPrompt(ctx: Context): string {
   return s;
 }
 
-async function callLLM(
+/** Read `data: {...}` events off a live SSE body as they arrive. */
+async function* sseEvents(
+  body: ReadableStream<Uint8Array>,
+): AsyncGenerator<Record<string, unknown>> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    for (let nl = buf.indexOf("\n"); nl >= 0; nl = buf.indexOf("\n")) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        yield JSON.parse(payload) as Record<string, unknown>;
+      } catch {
+        /* non-JSON event — ignore */
+      }
+    }
+  }
+}
+
+/** Pull something readable out of a non-2xx provider response. */
+async function apiError(res: Response): Promise<string> {
+  const text = await res.text().catch(() => "");
+  try {
+    const j = JSON.parse(text) as { error?: { message?: string } };
+    if (j.error?.message) return j.error.message;
+  } catch {
+    /* not JSON — fall through to the raw body */
+  }
+  return text.trim().slice(0, 200) || `the provider returned ${res.status}`;
+}
+
+export function defaultModel(provider: string): string {
+  // GPT-5 spends its budget on reasoning tokens and can return nothing under a
+  // small cap, so the OpenAI default is the flagship that streams predictably.
+  return provider === "openai" ? "gpt-4.1" : "claude-opus-4-8";
+}
+
+async function streamLLM(
   provider: string,
   key: string,
   model: string,
   system: string,
   question: string,
-): Promise<string> {
-  if (provider === "openai") {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  onText: (text: string) => Promise<void>,
+): Promise<void> {
+  const openai = provider === "openai";
+  const res = await fetch(
+    openai ? "https://api.openai.com/v1/chat/completions" : "https://api.anthropic.com/v1/messages",
+    {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        max_tokens: 700,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: question },
-        ],
-      }),
-    });
-    const j = (await res.json()) as { choices?: { message?: { content?: string } }[]; error?: { message?: string } };
-    if (j.error) throw new Error(j.error.message ?? "OpenAI error");
-    return j.choices?.[0]?.message?.content ?? "(no answer)";
+      headers: openai
+        ? { "content-type": "application/json", authorization: `Bearer ${key}` }
+        : {
+            "content-type": "application/json",
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+          },
+      body: JSON.stringify(
+        openai
+          ? {
+              model,
+              stream: true,
+              max_completion_tokens: 1200,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: question },
+              ],
+            }
+          : {
+              model,
+              stream: true,
+              max_tokens: 1200,
+              system,
+              messages: [{ role: "user", content: question }],
+            },
+      ),
+    },
+  );
+  if (!res.ok || !res.body) throw new Error(await apiError(res));
+
+  for await (const evt of sseEvents(res.body)) {
+    if (openai) {
+      const choices = evt.choices;
+      const first = Array.isArray(choices) ? (choices[0] as { delta?: { content?: unknown } }) : null;
+      const text = first?.delta?.content;
+      if (typeof text === "string" && text) await onText(text);
+      continue;
+    }
+    if (evt.type === "content_block_delta") {
+      // Thinking deltas stream through here too; only text reaches the user.
+      const delta = evt.delta as { type?: string; text?: string } | undefined;
+      if (delta?.type === "text_delta" && delta.text) await onText(delta.text);
+    } else if (evt.type === "error") {
+      const err = evt.error as { message?: string } | undefined;
+      throw new Error(err?.message ?? "the provider ended the stream");
+    }
   }
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
-      model,
-      max_tokens: 700,
-      system,
-      messages: [{ role: "user", content: question }],
-    }),
-  });
-  const j = (await res.json()) as { content?: { text?: string }[]; error?: { message?: string } };
-  if (j.error) throw new Error(j.error.message ?? "Anthropic error");
-  return j.content?.[0]?.text ?? "(no answer)";
 }
+
+export type AssistantChunk =
+  | { type: "delta"; text: string }
+  | { type: "done"; source: "local" | "llm" }
+  | { type: "error"; message: string };
 
 export interface AssistantReply {
   answer: string;
   source: "local" | "llm";
 }
 
+const NO_KEY_HINT =
+  "I can answer questions about your spend, errors, latency, models, and tools right now. For open-ended analysis, add an LLM key in **Settings**.";
+
+/**
+ * Answer a question, emitting the reply in pieces. Local answers arrive whole;
+ * LLM answers stream token by token. Either way the caller gets exactly one
+ * terminal `done` chunk naming which one it got.
+ */
+export async function askStream(
+  store: Store,
+  vault: Vault,
+  question: string,
+  traceId: string | undefined,
+  emit: (chunk: AssistantChunk) => Promise<void> | void,
+): Promise<void> {
+  const ctx = buildContext(store, traceId);
+  const local = localAnswer(question, ctx);
+  const sealed = store.getSetting("assistant_key");
+
+  // With no key, everything is computed from the store.
+  if (!sealed) {
+    await emit({ type: "delta", text: local ?? NO_KEY_HINT });
+    await emit({ type: "done", source: "local" });
+    return;
+  }
+
+  const key = vault.open(sealed);
+  if (!key) {
+    await emit({
+      type: "delta",
+      text: local ?? "The stored key could not be read. Re-add it in **Settings**.",
+    });
+    await emit({ type: "done", source: "local" });
+    return;
+  }
+
+  const provider = store.getSetting("assistant_provider") ?? "anthropic";
+  const model = store.getSetting("assistant_model") || defaultModel(provider);
+
+  let streamed = false;
+  try {
+    await streamLLM(provider, key, model, systemPrompt(ctx), question, async (text) => {
+      streamed = true;
+      await emit({ type: "delta", text });
+    });
+    if (!streamed) await emit({ type: "delta", text: local ?? "The model returned an empty answer." });
+    await emit({ type: "done", source: streamed ? "llm" : "local" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown error";
+    // Nothing has reached the reader yet, so the local answer can still stand in.
+    if (!streamed) {
+      await emit({ type: "delta", text: local ?? `The assistant LLM call failed: ${message}.` });
+      await emit({ type: "done", source: "local" });
+      return;
+    }
+    await emit({ type: "error", message: `The answer was cut short: ${message}.` });
+    await emit({ type: "done", source: "llm" });
+  }
+}
+
+/** Collect a streamed answer into one reply, for callers that can't stream. */
 export async function ask(
   store: Store,
   vault: Vault,
   question: string,
   traceId?: string,
 ): Promise<AssistantReply> {
-  const ctx = buildContext(store, traceId);
-
-  const local = localAnswer(question, ctx);
-  const sealed = store.getSetting("assistant_key");
-
-  // With no key, always answer locally (and nudge toward configuring one).
-  if (!sealed) {
-    return {
-      answer:
-        local ??
-        "I can answer questions about your spend, errors, latency, models, and tools right now. For open-ended analysis, add an LLM key in **Settings**.",
-      source: "local",
-    };
-  }
-
-  // A key is configured — prefer the LLM for richer answers, fall back to local.
-  const key = vault.open(sealed);
-  if (!key) return { answer: local ?? "The stored key could not be read. Re-add it in Settings.", source: "local" };
-  const provider = store.getSetting("assistant_provider") ?? "anthropic";
-  const model = store.getSetting("assistant_model") ?? (provider === "openai" ? "gpt-4o-mini" : "claude-haiku-4-5-20251001");
-  try {
-    const answer = await callLLM(provider, key, model, systemPrompt(ctx), question);
-    return { answer, source: "llm" };
-  } catch (err) {
-    return {
-      answer: local ?? `The assistant LLM call failed: ${err instanceof Error ? err.message : "unknown error"}.`,
-      source: "local",
-    };
-  }
+  let answer = "";
+  let source: AssistantReply["source"] = "local";
+  await askStream(store, vault, question, traceId, (chunk) => {
+    if (chunk.type === "delta") answer += chunk.text;
+    else if (chunk.type === "error") answer += `${answer ? "\n\n" : ""}${chunk.message}`;
+    else source = chunk.source;
+  });
+  return { answer, source };
 }
