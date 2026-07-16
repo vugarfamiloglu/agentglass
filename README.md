@@ -13,7 +13,9 @@ invocation, token, and dollar it spends. Live, on your own machine.
 ![node](https://img.shields.io/badge/node-%E2%89%A522-2c313d?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![no native deps](https://img.shields.io/badge/native%20deps-zero-8b7bff?style=for-the-badge)
 
-![Overview](docs/screenshots/overview.png)
+![AgentGlass in motion](docs/demo.gif)
+
+<sub>Live dashboard → a run torn open (waterfall, context growth, every step's I/O) → analytics → ask your runs a question.</sub>
 
 </div>
 
