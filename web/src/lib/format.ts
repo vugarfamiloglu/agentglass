@@ -25,6 +25,23 @@ export function duration(ms: number | null): string {
   return `${m}m ${s}s`;
 }
 
+/** Hour-resolution stamp for chart readouts, e.g. "Jul 16, 14:00". */
+export function hourStamp(t: number): string {
+  const d = new Date(t);
+  const day = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const hour = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${day}, ${hour}`;
+}
+
+/** Day label for the activity grid, e.g. "Thu, Jul 16". */
+export function dayStamp(t: number): string {
+  return new Date(t).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function bytes(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)} GB`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)} MB`;

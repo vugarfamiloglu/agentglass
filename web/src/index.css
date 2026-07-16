@@ -584,6 +584,125 @@ a {
   display: block;
 }
 
+/* ---- Chart hover readout -------------------------------------------------- */
+
+/* Hugs the SVG exactly, so a percentage here means the same thing it means in
+   the viewBox. The padded wrappers around it would shift every reading. */
+.chart-hit {
+  position: relative;
+}
+
+.chart-cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--cyan) 50%, transparent) 18%,
+    color-mix(in srgb, var(--cyan) 50%, transparent) 82%,
+    transparent
+  );
+}
+
+.chart-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: var(--cyan);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--cyan) 20%, transparent),
+    0 0 14px var(--cyan);
+}
+
+.tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  min-width: 136px;
+  padding-bottom: 7px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-3) 94%, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 50%);
+  backdrop-filter: blur(8px);
+  transform: translate(14px, -50%);
+  animation: tip-in 110ms ease-out;
+}
+
+/* Near the right edge, sit on the other side rather than off the panel. */
+.tip.is-flipped {
+  transform: translate(calc(-100% - 14px), -50%);
+}
+
+.tip::before {
+  content: "";
+  display: block;
+  height: 2px;
+  margin-bottom: 8px;
+  background: var(--brand-grad);
+}
+
+.tip-title {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  padding: 0 11px 6px;
+  white-space: nowrap;
+}
+
+.tip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 2px 11px;
+}
+
+.tip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tip-sw {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.tip-value {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+@keyframes tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip {
+    animation: none;
+  }
+}
+
 .chart-empty {
   height: 150px;
   display: grid;
@@ -1096,9 +1215,22 @@ a {
 }
 .ctx-bar-fresh {
   fill: color-mix(in srgb, var(--violet) 72%, transparent);
+  transition: opacity 130ms ease;
 }
 .ctx-bar-cache {
   fill: color-mix(in srgb, var(--cyan) 62%, transparent);
+  transition: opacity 130ms ease;
+}
+/* Pulling the rest back is what makes the hovered call read as the subject. */
+.ctx-bar-fresh.is-dim,
+.ctx-bar-cache.is-dim {
+  opacity: 0.28;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ctx-bar-fresh,
+  .ctx-bar-cache {
+    transition: none;
+  }
 }
 
 /* ---- Detail actions ------------------------------------------------------- */
@@ -1361,6 +1493,8 @@ a {
   display: flex;
   gap: 3px;
   min-width: min-content;
+  /* The offsetParent for cell hover positions, and for the readout itself. */
+  position: relative;
 }
 .hm-col {
   display: flex;
@@ -1372,6 +1506,24 @@ a {
   height: 12px;
   border-radius: 2px;
   background: var(--surface-3);
+  transition:
+    outline-color 120ms ease,
+    transform 120ms ease;
+  outline: 1px solid transparent;
+  outline-offset: 1px;
+}
+/* Ring the day being read, so the number and the square are obviously paired. */
+.hm-cell.is-on {
+  outline-color: var(--cyan);
+  transform: scale(1.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hm-cell {
+    transition: none;
+  }
+  .hm-cell.is-on {
+    transform: none;
+  }
 }
 .hm-empty {
   background: transparent;
