@@ -178,15 +178,20 @@ Copy-paste setup for the recording proxy. It shows the exact `ANTHROPIC_BASE_URL
 a task's calls into one trace, and a diagram of how requests flow through
 AgentGlass to the real provider and back — untouched.
 
-### Settings — the assistant key, sealed
+### Settings — the assistant key, sealed, and your data
 
 ![Settings](docs/screenshots/settings.png)
 
 The assistant answers questions about your runs locally with **no key at all**.
 Add an Anthropic or OpenAI key here to unlock open-ended analysis — it's sealed
 with **AES-256-GCM** in `data/.vault-key` and never leaves your machine. The key
-field has a show/hide toggle, and you can remove the key at any time to fall back
-to local answers.
+field has a show/hide toggle, and the model field suggests from the catalog with
+each model's rate beside its name.
+
+The **Data** panel shows how many runs are stored and what they cost on disk, and
+lets you set a retention window (7 / 30 / 90 days, or keep everything — the
+default). Anything past the window is pruned on boot and every few hours after.
+Clearing traces and removing the key both go through a confirmation dialog.
 
 ### Assistant — ask your runs
 
@@ -197,8 +202,8 @@ The right-hand rail (toggle it with the ✦ in the top bar) is a chat that
 "which models cost the most?", or "summarize my tool usage" and it answers
 instantly by computing over your data — no API key required. On a specific run's
 page it can answer about *that* run ("why did this cost so much?"). Add an LLM key
-in Settings and open-ended questions get routed to the model, with your run
-context attached.
+in Settings and open-ended questions get routed to the model, streamed token by
+token, with your run context attached.
 
 ---
 
@@ -222,18 +227,60 @@ Successive calls are grouped into a single **trace** (one agent task) either by 
 explicit `x-agentglass-session` header or by a short idle window, so a multi-step
 agent run shows up as one coherent tree instead of scattered calls.
 
+### Tool calls, without instrumenting anything
+
+The proxy sees only LLM requests — it never watches a tool execute. It gets the
+tool tree anyway, by reading both sides of the conversation:
+
+```
+  ┌── request ──────────┐    ┌── response ─────────────┐
+  │ "fix the auth test" │ →  │ text + tool_use(read_file)   ← call opens
+  └─────────────────────┘    └─────────────────────────┘
+                                        ⋮  agent runs the tool
+  ┌── next request ─────────────────┐
+  │ …, tool_result(read_file) → ok  │                          ← call closes
+  └─────────────────────────────────┘
+```
+
+A tool call is parsed out of each response (Anthropic `tool_use` blocks, OpenAI
+`tool_calls`, streamed or not) and held until its result shows up on the agent's
+next request. That's when the **tool span** gets written, running from the moment
+the LLM response finished to the moment the next request landed — precisely the
+window the agent spent executing it. Parallel tool calls share that window,
+because that's what happened.
+
+So pointing Claude Code — or any tool-using agent — at AgentGlass gives you the
+full `llm → tool → llm` waterfall in the inspector. **Zero code changes, zero
+SDK, zero decorators. Just a base URL.**
+
+### Which models it knows
+
+Around 90 models across **Anthropic, OpenAI, Google, xAI, DeepSeek, Meta,
+Mistral, Qwen, Cohere, and Amazon**, matched by longest-prefix so a dated id
+(`claude-opus-4-8-20260101`) or a Bedrock-prefixed one
+(`anthropic.claude-sonnet-5`) resolves correctly, and an unreleased version
+still prices from its family. Cache reads and writes are billed at their own
+rates — which matters, because an agent loop writes cache constantly and
+Anthropic charges 1.25× input to do it.
+
+Anything that speaks `/v1/chat/completions` — **OpenRouter, LiteLLM, Groq,
+Together, Gemini's OpenAI-compatible endpoint, vLLM, Ollama** — records through
+the OpenAI route today and prices from the same table.
+
 ## Features
 
 | | |
 |---|---|
 | 🛰️ **Recording proxy** | Anthropic- & OpenAI-compatible endpoints that transparently forward and record — streaming preserved. |
+| 🔧 **Tool calls, uninstrumented** | Reconstructs the full `llm → tool → llm` tree from proxy traffic alone. No SDK, no decorators. |
 | 🌲 **Trace explorer** | Every run as a tree of spans: LLM calls, tool executions, events. |
 | 🔬 **Run inspector** | Waterfall timeline, context-window chart, per-step token & cost, full I/O. |
-| 💸 **Token & cost accounting** | Per-step and per-run input / output / cache tokens and USD, rolled up automatically. |
+| 💸 **Token & cost accounting** | ~90 models across 10 providers, cache reads and writes priced separately, rolled up per step and per run. |
 | ⚡ **Live stream** | Runs light up in the dashboard as they happen, over WebSocket. |
 | 🔀 **Run diff** | Compare two runs side by side — cost, tokens, latency, spans. |
 | 📈 **Analytics** | Spend over time, activity heatmap, breakdowns by model and tool, CSV export. |
-| 🤖 **Ask-your-runs assistant** | Answers about your traces locally; optional LLM for open-ended questions. |
+| 🤖 **Ask-your-runs assistant** | Answers about your traces locally; optional LLM, streamed token by token. |
+| 🧹 **Retention** | Keeps everything by default; pick a window and old runs are pruned automatically. |
 | 🔒 **Local & sealed** | Runs on your machine; the one secret (assistant key) is AES-256-GCM vaulted. |
 
 ## 🛠 Tech Stack

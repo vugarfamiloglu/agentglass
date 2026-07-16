@@ -1,72 +1,29 @@
 # AgentGlass — technical improvement backlog
 
-The product is feature-complete across the original 7 phases. This is the next
-iteration: concrete, prioritized tasks. Each has a **goal**, **why**, an
-**approach** (files + technical direction), and **acceptance** criteria.
+Concrete, prioritized tasks. Each has a **goal**, **why**, an **approach** (files
++ technical direction), and **acceptance** criteria.
 
-Legend: **P0** = biggest product/launch impact · **P1** = launch assets + polish
-· **P2** = depth & quality.
+Legend: **P0** = biggest product/launch impact · **P1** = polish · **P2** = depth.
 
----
+## Done
 
-## P0 — Close the gap between real captures and the simulator
-
-### 1. Reconstruct tool spans from proxy traffic
-**Goal:** When a real agent runs through the proxy, show the full tool-call tree
-in the inspector — not just LLM spans.
-**Why:** `src/proxy.ts` currently records exactly one `llm` span per call. The
-simulator produces rich `llm`+`tool` waterfalls; real captures are flat, so the
-inspector's best feature (the loop, the waterfall) only shines on demo data. This
-is the #1 thing that makes AgentGlass actually deliver on its promise for real
-agents.
-**Approach:**
-- In `proxy.ts`, parse tool calls out of the provider response and tool results
-  out of the *next* request, keyed by tool id:
-  - **Anthropic:** response `content[]` → `{type:"tool_use", id, name, input}`.
-    Next request messages → `{role:"user", content:[{type:"tool_result",
-    tool_use_id, content}]}`.
-  - **OpenAI:** response `choices[0].message.tool_calls[]`. Next request →
-    `{role:"tool", tool_call_id, content}`.
-- Keep a per-trace `Map<toolUseId, {name, input, startedAt}>` (extend
-  `Correlator` or a sibling). When the result arrives in the next call, emit a
-  `tool` span (start = after the previous LLM span, end = when the next request
-  arrives) with input+output, `broadcast` it, and roll it up.
-- Order spans by time so the waterfall reads correctly.
-**Files:** `src/proxy.ts`, maybe `src/types.ts`.
-**Acceptance:** A real (or mock) Claude Code / OpenAI tool-using run through the
-proxy shows `tool` spans interleaved with `llm` spans in the inspector.
-
-### 2. Retention & data management (+ a ConfirmModal)
-**Goal:** Clear traces, auto-retention, and a visible DB size.
-**Why:** Traces grow unbounded today; there's no prune. A real user needs "clear"
-and a retention policy.
-**Approach:**
-- Store: `deleteOlderThan(ms)`, `dbSizeBytes()` (`PRAGMA page_count * page_size`),
-  reuse `clearAll()`.
-- API: `DELETE /api/traces` (all), `GET/PUT /api/settings/retention`; run a
-  retention sweep on boot + daily.
-- Settings page: "Clear all traces" (**must** use a `ConfirmModal` per house
-  rules — the app has none yet, build `web/src/components/ConfirmModal.tsx`),
-  retention select (7 / 30 / 90 / never), DB-size readout.
-**Files:** `src/db.ts`, `src/api.ts`, `web/src/pages/Settings.tsx`, new
-`web/src/components/ConfirmModal.tsx`.
-**Acceptance:** Can clear (with confirmation), set retention, see DB size; old
-traces are swept.
-
-### 3. Streaming assistant (SSE)
-**Goal:** Assistant answers stream token-by-token in LLM mode.
-**Why:** Better chat UX; matches the reference dashboards.
-**Approach:** `POST /api/assistant/stream` returns SSE; `callLLM` with
-`stream:true`, forward deltas. Rail consumes the stream and appends. Local answers
-can appear instantly (or type out).
-**Files:** `src/assistant.ts`, `src/api.ts`, `web/src/components/AssistantRail.tsx`.
-**Acceptance:** With a key configured, answers stream in live.
+- **Tool spans from proxy traffic.** Tool calls are parsed out of every response
+  (Anthropic `tool_use`, OpenAI `tool_calls`, JSON and streamed) and closed when
+  their results arrive on the next request, so a real capture now shows the same
+  `llm → tool → llm` waterfall the simulator does. Wire formats moved to
+  `src/providers.ts`; the proxy is format-blind.
+- **Model catalog.** ~90 models across ten providers, longest-prefix matched,
+  with cache reads and writes priced separately. `GET /api/models` feeds the UI.
+- **Retention & data management.** Configurable window swept on boot and every
+  six hours, database-size readout, clear-all — behind a `ConfirmModal`.
+- **Streaming assistant.** `POST /api/assistant/stream` (SSE); `ask()` is now a
+  collector over `askStream()`, so there's one code path.
 
 ---
 
-## P1 — Launch assets & polish
+## P0 — Launch
 
-### 4. Animated demo GIF in the README
+### 1. Animated demo GIF in the README
 **Goal:** A ~12s screencast at the top of the README.
 **Why:** The single biggest virality asset — a moving demo sells the tool in two
 seconds. Static screenshots are good; a GIF is better.
@@ -75,16 +32,16 @@ seconds. Static screenshots are good; a GIF is better.
 with `gifski`/`ffmpeg` to a tight loop. Embed as `docs/demo.gif`.
 **Acceptance:** `docs/demo.gif` renders at the top of the README.
 
-### 5. Publish `npx agentglass` + a container image
+### 2. Publish `npx agentglass` + a container image
 **Goal:** `npx agentglass` runs it with no clone; `docker pull ghcr.io/…/agentglass`.
 **Why:** Frictionless "try" = adoption. `npx agentglass` is a killer install line.
 **Approach:** `prepublishOnly: npm run build`; `files` already set; confirm the npm
 name is free (flip if not). GH Actions to build + push the Docker image to GHCR on
-tag. (Docker image build itself is verified-by-equivalence today; actually build it
-once the Docker daemon is up.)
+tag. (The Docker build is verified-by-equivalence today; actually build it once the
+Docker daemon is up.)
 **Acceptance:** `npx agentglass@latest` starts the server; image pullable.
 
-### 6. Hosted read-only demo
+### 3. Hosted read-only demo
 **Goal:** A public URL running the simulator (proxy disabled) so people try
 without installing.
 **Why:** HN/Twitter visitors click a link, not `git clone`. Huge top-of-funnel.
@@ -92,7 +49,25 @@ without installing.
 `/v1/*` proxy routes disabled (read-only). Link from the README.
 **Acceptance:** A live demo URL that mirrors local, using seeded data.
 
-### 7. Light theme + toggle
+### 4. CI (GitHub Actions)
+**Goal:** typecheck + test + build on every push / PR.
+**Approach:** `.github/workflows/ci.yml` — Node 24: `npm ci`, `npm --prefix web
+ci`, `npm run typecheck`, `npm test`, `npm run build`.
+**Acceptance:** A green check on commits; red on breakage.
+
+---
+
+## P1 — Polish
+
+### 5. Re-shoot the screenshots
+**Goal:** The 11 README screenshots predate the model catalog, so they show
+`sonnet-4` / `opus-4` / `4o` where a new user now sees `claude-sonnet-4-6`,
+`claude-opus-4-8`, `gpt-5`, `grok-4`, `deepseek-chat`. The Models and Overview
+shots are the most visibly dated.
+**Approach:** Clear traces, restart to reseed, re-capture at the same viewport.
+**Acceptance:** Screenshots match what a fresh install shows.
+
+### 6. Light theme + toggle
 **Goal:** A light "field manual" theme alongside the dark one, toggled from the
 top bar.
 **Why:** House rule (ship both themes, both intentional); broader appeal.
@@ -103,37 +78,54 @@ deliberate, not an auto-invert.
 `main.tsx`.
 **Acceptance:** Toggle flips both themes; light mode is intentional.
 
-### 8. ⌘K command palette + toasts
+### 7. ⌘K command palette + toasts
 **Goal:** ⌘K to jump to any page or recent trace; toasts for actions.
-**Why:** House patterns; pro-grade UX.
+**Why:** House patterns; pro-grade UX. Settings currently reports outcomes in an
+inline line of text that a toast would carry better.
 **Approach:** A palette component (fuzzy over nav items + `/api/traces`); a tiny
-toast pubsub (`success`/`error`) shown on save-key, export, clear, etc.
+toast pubsub (`success`/`error`) shown on save-key, export, clear, retention.
 **Files:** `web/src/components/CommandPalette.tsx`, `web/src/components/Toaster.tsx`.
 **Acceptance:** ⌘K opens/searches; actions toast.
+
+### 8. Provider chips on the Models page
+**Goal:** Show which vendor each model belongs to now that ten are covered.
+**Approach:** `providerOf()` already exists in `src/pricing.ts`; annotate
+`byModel()` rows with it and render a tinted chip per provider.
+**Acceptance:** The Models table reads as multi-provider at a glance.
 
 ---
 
 ## P2 — Depth & quality
 
-### 9. OTLP / SDK ingest endpoint
+### 9. User-editable pricing
+**Goal:** Override any catalog rate, and add models the catalog doesn't know.
+**Why:** List prices drift and providers ship faster than a table in a repo. The
+catalog is honest about being approximate; this is what makes that acceptable.
+**Approach:** Persist overrides to `settings`, load at boot, merge ahead of
+`CATALOG` in `lookup()` (the matcher already takes a list — feed it
+`[...overrides, ...CATALOG]`). Settings gets an editable grid seeded from
+`GET /api/models`.
+**Acceptance:** A custom price applies to new spans; a custom key prices a model
+the catalog has never seen.
+
+### 10. Native Gemini in the proxy
+**Goal:** Record `generativelanguage.googleapis.com` traffic directly.
+**Why:** Gemini already records through the OpenAI-compatible route, so this is
+about the native API, not about coverage.
+**Approach:** A third `Provider` in `src/providers.ts`. Note the differences: the
+model is in the path (`/v1beta/models/{model}:generateContent`), usage is
+`usageMetadata` (and `promptTokenCount` includes `cachedContentTokenCount` —
+subtract, as with OpenAI), streaming is `?alt=sse`, and **`functionCall` has no
+id**, so `ToolTracker` would need a name-keyed fallback.
+**Acceptance:** A native Gemini tool-using run records with tool spans.
+
+### 11. OTLP / SDK ingest endpoint
 **Goal:** `POST /api/ingest/spans` (or OTel `/v1/traces`) accepts pushed spans so
 SDK-instrumented apps can report without the proxy.
 **Why:** Broadens compatibility beyond base-URL swapping.
 **Approach:** JSON body → `store.createTrace` + `addSpan` + broadcast. Optional: a
 tiny TS/Python helper that sets `x-agentglass-session` and posts spans.
 **Acceptance:** A posted span batch shows as a trace.
-
-### 10. More providers + editable pricing
-**Goal:** Gemini in the proxy + pricing; user-editable pricing table.
-**Approach:** Add Gemini upstream + pricing rows; Settings gets an editable
-pricing grid persisted to `settings`; `costOf` reads overrides first.
-**Acceptance:** Gemini calls record with cost; custom prices apply.
-
-### 11. CI (GitHub Actions)
-**Goal:** typecheck + test + build on every push / PR.
-**Approach:** `.github/workflows/ci.yml` — Node 24: `npm ci`, `npm --prefix web
-ci`, `npm run typecheck`, `npm test`, `npm run build`.
-**Acceptance:** A green check on commits; red on breakage.
 
 ### 12. Errors view, latency percentiles, full-text search
 - **Errors page:** grouped failed runs (by tool / error message).
@@ -155,14 +147,12 @@ the first ~32 KB with a `"truncated": true` marker.
 
 ---
 
-## Suggested order for tomorrow
+## Suggested order
 
-1. **#1 tool spans from the proxy** — the biggest product win; makes real captures
-   as rich as the sim.
-2. **#4 demo GIF** + **#5 npx/Docker publish** + **#6 hosted demo** — the launch
-   trio; cheap, huge reach.
-3. **#2 retention + ConfirmModal** and **#11 CI** — production hygiene.
-4. Then polish (#3 streaming, #7 light theme, #8 ⌘K) as time allows.
+1. **The launch trio** (#1 GIF, #2 npx/Docker, #3 hosted demo) + **#4 CI** —
+   the product is ready; this is reach.
+2. **#5 screenshots** — cheap, and they're the first thing a visitor reads.
+3. Then polish (#6 light theme, #7 ⌘K, #8 provider chips) and depth as time allows.
 
-Once #1 and the launch trio are done, it's ready for **Show HN + r/selfhosted +
+Once the launch trio is done it's ready for **Show HN + r/selfhosted +
 r/LocalLLaMA** (Tue–Thu, 8–10 AM PT).
