@@ -9,11 +9,18 @@ import { costOf, priceFor, providerOf } from "./pricing.js";
 import { ANTHROPIC, OPENAI } from "./providers.js";
 import { ToolTracker } from "./proxy.js";
 import { setRetentionDays, sweepRetention } from "./retention.js";
+import { configuredProviders, resolveTarget, saveKey, type LlmTarget, type Target } from "./llm.js";
 import { Store } from "./db.js";
 import { ask, askStream, type AssistantChunk } from "./assistant.js";
 
 function tmp(): string {
   return mkdtempSync(join(tmpdir(), "ag-test-"));
+}
+
+/** Assert a target resolved and hand back the LLM it points at. */
+function ready(target: Target): LlmTarget {
+  assert.equal(target.status, "ready");
+  return (target as Extract<Target, { status: "ready" }>).llm;
 }
 
 const DAY = 86_400_000;
@@ -156,6 +163,48 @@ test("tool tracker pairs a call with the result on the next request", () => {
 
   // Agents resend their whole history every turn — that must not re-record.
   assert.equal(tracker.close("sess", [{ id: "toolu_1", output: "contents", isError: false }]).length, 0);
+});
+
+test("llm targets resolve per provider and keys never cross between them", () => {
+  const db = new Store(tmp());
+  const v = new Vault(tmp());
+
+  // Nothing connected is the normal local-only state, not a failure.
+  assert.equal(resolveTarget(db, v).status, "unconfigured");
+
+  // A local runtime is usable with no key at all.
+  db.setSetting("assistant_provider", "ollama");
+  const local = ready(resolveTarget(db, v));
+  assert.equal(local.baseUrl, "http://localhost:11434/v1");
+  assert.equal(local.key, "");
+
+  saveKey(db, v, "openai", "sk-openai");
+  db.setSetting("assistant_provider", "openai");
+  const openai = ready(resolveTarget(db, v));
+  assert.equal(openai.key, "sk-openai");
+  assert.equal(openai.model, "gpt-4.1"); // the provider's default, unasked
+
+  // Switching provider must not hand OpenAI's key to Anthropic.
+  db.setSetting("assistant_provider", "anthropic");
+  assert.equal(resolveTarget(db, v).status, "unconfigured");
+  // ...and switching back finds it again.
+  db.setSetting("assistant_provider", "openai");
+  assert.equal(ready(resolveTarget(db, v)).key, "sk-openai");
+
+  // An unsaved key can be tried before it's committed — this is "Load models".
+  assert.equal(ready(resolveTarget(db, v, { provider: "groq", key: "gsk-probe" })).key, "gsk-probe");
+
+  // A custom endpoint is unreachable until it's told where to go.
+  saveKey(db, v, "custom", "sk-x");
+  db.setSetting("assistant_provider", "custom");
+  assert.equal(resolveTarget(db, v).status, "broken");
+  assert.equal(ready(resolveTarget(db, v, { baseUrl: "http://localhost:8000/v1/" })).baseUrl,
+    "http://localhost:8000/v1"); // trailing slash trimmed
+
+  const ok = configuredProviders(db, v);
+  assert.ok(ok.includes("openai"));
+  assert.ok(ok.includes("ollama")); // keyless providers are always ready
+  assert.ok(!ok.includes("anthropic"));
 });
 
 test("store rolls span totals up into the trace and aggregates", () => {
