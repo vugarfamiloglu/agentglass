@@ -118,7 +118,7 @@ export function AssistantRail() {
           <div className="rail-empty">
             <div className="rail-empty-title">Ask about your runs</div>
             <div className="rail-empty-note">
-              I read your traces — spend, errors, latency, models, and tools. Add an LLM key in
+              I read your traces — spend, errors, latency, models, and tools. Connect a model in
               Settings for open-ended analysis.
             </div>
           </div>

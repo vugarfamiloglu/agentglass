@@ -1726,6 +1726,22 @@ a {
   font-size: 11px;
   color: var(--text-subtle);
 }
+.set-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.set-row .input {
+  flex: 1;
+}
+.set-row .btn-ghost {
+  white-space: nowrap;
+}
+.set-hint {
+  font-size: 11px;
+  color: var(--text-subtle);
+  max-width: 460px;
+}
 .btn-ghost.is-danger {
   color: var(--rose);
   border-color: color-mix(in srgb, var(--rose) 30%, var(--border));

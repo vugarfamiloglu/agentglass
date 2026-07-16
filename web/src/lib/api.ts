@@ -99,10 +99,22 @@ export interface ModelEntry {
   family?: boolean;
 }
 
+export interface LlmProvider {
+  id: string;
+  label: string;
+  kind: "anthropic" | "openai";
+  baseUrl: string;
+  defaultModel: string;
+  keyless?: boolean;
+  hint: string;
+}
+
 export interface AssistantSettings {
   assistantConfigured: boolean;
   provider: string;
   model: string;
+  baseUrl: string;
+  configuredProviders: string[];
   retentionDays: number;
   dbSizeBytes: number;
   traces: number;
@@ -149,8 +161,12 @@ export const api = {
   ask: (message: string, traceId?: string) =>
     postJson<AssistantReply>("/api/assistant", { message, traceId }),
   settings: () => getJson<AssistantSettings>("/api/settings"),
-  setAssistant: (key: string, provider: string, model: string) =>
-    postJson<{ configured: boolean }>("/api/settings/assistant", { key, provider, model }),
+  assistantProviders: () => getJson<LlmProvider[]>("/api/assistant/providers"),
+  /** Ask the provider what it serves — works with a key that isn't saved yet. */
+  assistantModels: (body: { provider: string; key?: string; baseUrl?: string }) =>
+    postJson<{ models: string[] }>("/api/assistant/models", body),
+  setAssistant: (body: { provider: string; key: string; model: string; baseUrl: string }) =>
+    postJson<{ configured: boolean; model: string }>("/api/settings/assistant", body),
   clearAssistant: () => delJson<{ configured: boolean }>("/api/settings/assistant"),
   setRetention: (days: number) =>
     putJson<{ retentionDays: number; removed: number }>("/api/settings/retention", { days }),
