@@ -25,6 +25,13 @@ export function duration(ms: number | null): string {
   return `${m}m ${s}s`;
 }
 
+export function bytes(n: number): string {
+  if (n >= 1e9) return `${(n / 1e9).toFixed(2)} GB`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)} MB`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)} KB`;
+  return `${n} B`;
+}
+
 export function ago(ts: number): string {
   const d = Date.now() - ts;
   if (d < 60_000) return `${Math.max(1, Math.floor(d / 1000))}s ago`;
