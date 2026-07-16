@@ -1439,9 +1439,13 @@ a {
 .st-row:last-child {
   border-bottom: 0;
 }
+/* The model name is the identity; the cost bar is relative and reads fine at
+   any width — so the name gets a floor and the bar gives up the space. Without
+   this, a half-width panel clips "claude-sonnet-4-6" to "claude-s…" to keep a
+   decoration wide. */
 .model-cols {
   display: grid;
-  grid-template-columns: 1.4fr 0.7fr 0.9fr 0.9fr 1.4fr;
+  grid-template-columns: minmax(118px, 2fr) 0.6fr 0.9fr 0.9fr minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   padding: 10px 16px;

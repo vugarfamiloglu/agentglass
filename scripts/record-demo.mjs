@@ -37,6 +37,22 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 
+/**
+ * Glide the cursor across a chart, resting on each stop so the hover readout is
+ * legible. Real mouse moves, not dispatched events — React derives its hover
+ * handlers from bubbling pointer events, and a synthetic `mouseenter` never
+ * reaches them.
+ */
+async function sweep(selector, stops, restMs) {
+  const box = await page.locator(selector).first().boundingBox();
+  if (!box) return;
+  const y = box.y + box.height / 2;
+  for (const [i, stop] of stops.entries()) {
+    await page.mouse.move(box.x + box.width * stop, y, { steps: i === 0 ? 1 : 22 });
+    await beat(restMs);
+  }
+}
+
 // 1. The command center, updating live.
 await page.goto(BASE, { waitUntil: "networkidle" });
 await page.waitForSelector(".stat-grid");
@@ -47,18 +63,20 @@ await page.click('a[href="/traces"]');
 await page.waitForSelector('a[href^="/traces/tr_"]');
 await beat(1800);
 
-// 3. Open the black box: waterfall, then a step's full I/O.
+// 3. Open the black box: the context growing call by call, then a step's I/O.
 await page.click(`a[href="/traces/${hero.id}"]`);
 await page.waitForSelector(".span-row");
-await beat(2600);
+await beat(1900);
+await sweep(".ctx-chart", [0.42, 0.86], 1100);
 await page.locator(".span-row").nth(1).click();
 await page.waitForSelector(".sd-json");
-await beat(3000);
+await beat(2800);
 
-// 4. Where the money went.
+// 4. Where the money went, hour by hour.
 await page.click('a[href="/analytics"]');
-await page.waitForSelector(".panel");
-await beat(2600);
+await page.waitForSelector(".chart-hit");
+await beat(900);
+await sweep(".chart-hit", [0.24, 0.6, 0.93], 750);
 
 // 5. Ask the runs a question.
 await page.click('a[href="/"]');
