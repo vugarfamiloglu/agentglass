@@ -279,8 +279,27 @@ export class Store {
     this.db.exec("DELETE FROM spans; DELETE FROM traces;");
   }
 
+  /** Drop every trace that started before `cutoffMs`. Returns how many went. */
+  deleteOlderThan(cutoffMs: number): number {
+    this.db
+      .prepare("DELETE FROM spans WHERE trace_id IN (SELECT id FROM traces WHERE started_at < ?)")
+      .run(cutoffMs);
+    const res = this.db.prepare("DELETE FROM traces WHERE started_at < ?").run(cutoffMs);
+    return Number(res.changes);
+  }
+
   traceCount(): number {
     return (this.db.prepare("SELECT COUNT(*) AS n FROM traces").get() as { n: number }).n;
+  }
+
+  /** On-disk size of the database file, so Settings can show what this costs. */
+  dbSizeBytes(): number {
+    const pragma = (name: string): number => {
+      const row = this.db.prepare(`PRAGMA ${name}`).get() as Record<string, unknown> | undefined;
+      const value = row ? Object.values(row)[0] : 0;
+      return typeof value === "number" ? value : 0;
+    };
+    return pragma("page_count") * pragma("page_size");
   }
 
   // ---- analytics ----
