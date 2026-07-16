@@ -31,6 +31,16 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
   );
 }
 
+export async function putJson<T>(path: string, body: unknown): Promise<T> {
+  return unwrap<T>(
+    await fetch(path, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
 export async function delJson<T>(path: string): Promise<T> {
   return unwrap<T>(await fetch(path, { method: "DELETE" }));
 }
@@ -40,10 +50,62 @@ export interface AssistantReply {
   source: "local" | "llm";
 }
 
+export type AssistantChunk =
+  | { type: "delta"; text: string }
+  | { type: "done"; source: "local" | "llm" }
+  | { type: "error"; message: string };
+
+/** Stream an answer, handing each chunk over as it lands. */
+export async function askStream(
+  message: string,
+  traceId: string | undefined,
+  onChunk: (chunk: AssistantChunk) => void,
+): Promise<void> {
+  const res = await fetch("/api/assistant/stream", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message, traceId }),
+  });
+  if (!res.ok || !res.body) throw new Error(`the assistant returned ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    for (let nl = buf.indexOf("\n"); nl >= 0; nl = buf.indexOf("\n")) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith("data:")) continue;
+      try {
+        onChunk(JSON.parse(line.slice(5).trim()) as AssistantChunk);
+      } catch {
+        /* non-JSON event — ignore */
+      }
+    }
+  }
+}
+
+export interface ModelEntry {
+  key: string;
+  label: string;
+  provider: string;
+  input: number;
+  output: number;
+  cache: number;
+  cacheWrite: number;
+  family?: boolean;
+}
+
 export interface AssistantSettings {
   assistantConfigured: boolean;
   provider: string;
   model: string;
+  retentionDays: number;
+  dbSizeBytes: number;
+  traces: number;
 }
 
 export interface Health {
@@ -82,10 +144,14 @@ export const api = {
   trace: (id: string) => getJson<Trace>(`/api/traces/${id}`),
   spans: (id: string) => getJson<{ trace: Trace; spans: Span[] }>(`/api/traces/${id}/spans`),
   deleteTrace: (id: string) => delJson<{ deleted: boolean }>(`/api/traces/${id}`),
+  clearTraces: () => delJson<{ removed: number }>("/api/traces"),
+  models: () => getJson<ModelEntry[]>("/api/models"),
   ask: (message: string, traceId?: string) =>
     postJson<AssistantReply>("/api/assistant", { message, traceId }),
   settings: () => getJson<AssistantSettings>("/api/settings"),
   setAssistant: (key: string, provider: string, model: string) =>
     postJson<{ configured: boolean }>("/api/settings/assistant", { key, provider, model }),
   clearAssistant: () => delJson<{ configured: boolean }>("/api/settings/assistant"),
+  setRetention: (days: number) =>
+    putJson<{ retentionDays: number; removed: number }>("/api/settings/retention", { days }),
 };
