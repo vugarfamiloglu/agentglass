@@ -178,20 +178,32 @@ Copy-paste setup for the recording proxy. It shows the exact `ANTHROPIC_BASE_URL
 a task's calls into one trace, and a diagram of how requests flow through
 AgentGlass to the real provider and back — untouched.
 
-### Settings — the assistant key, sealed, and your data
+### Settings — connect a model, and mind your data
 
 ![Settings](docs/screenshots/settings.png)
 
-The assistant answers questions about your runs locally with **no key at all**.
-Add an Anthropic or OpenAI key here to unlock open-ended analysis — it's sealed
-with **AES-256-GCM** in `data/.vault-key` and never leaves your machine. The key
-field has a show/hide toggle, and the model field suggests from the catalog with
-each model's rate beside its name.
+The assistant answers questions about your runs locally with **nothing connected
+at all**. Point it at a model to unlock open-ended analysis:
+
+| | |
+|---|---|
+| **Hosted** | Anthropic · OpenAI · Google Gemini · xAI Grok · DeepSeek · Mistral · Groq · Together · OpenRouter · Cohere · Qwen |
+| **Local** | Ollama · LM Studio — **no key, no cost, nothing leaves the machine** |
+| **Anything else** | Custom base URL — vLLM, LiteLLM, Azure, your own gateway |
+
+Nearly every vendor now serves an OpenAI-compatible `/v1/chat/completions`
+endpoint, so adding one is a base URL rather than a new client; Anthropic's
+native Messages API is supported directly. **Load models** asks the provider what
+it actually serves right now — including which models you've pulled into Ollama —
+so you're picking from reality instead of a list that rots. Keys are sealed with
+**AES-256-GCM** in `data/.vault-key`, **one per provider**, so switching back and
+forth doesn't lose them.
 
 The **Data** panel shows how many runs are stored and what they cost on disk, and
 lets you set a retention window (7 / 30 / 90 days, or keep everything — the
 default). Anything past the window is pruned on boot and every few hours after.
-Clearing traces and removing the key both go through a confirmation dialog.
+Clearing traces and disconnecting a provider both go through a confirmation
+dialog.
 
 ### Assistant — ask your runs
 
@@ -201,9 +213,10 @@ The right-hand rail (toggle it with the ✦ in the top bar) is a chat that
 **reads your traces**. Ask "how much have I spent?", "what's my error rate?",
 "which models cost the most?", or "summarize my tool usage" and it answers
 instantly by computing over your data — no API key required. On a specific run's
-page it can answer about *that* run ("why did this cost so much?"). Add an LLM key
-in Settings and open-ended questions get routed to the model, streamed token by
-token, with your run context attached.
+page it can answer about *that* run ("why did this cost so much?"). Connect a
+model in Settings and open-ended questions get routed to it, streamed token by
+token, with your run context attached — including to a local Ollama model, so
+you can ask about your agents without a single byte leaving your machine.
 
 ---
 
@@ -279,7 +292,7 @@ the OpenAI route today and prices from the same table.
 | ⚡ **Live stream** | Runs light up in the dashboard as they happen, over WebSocket. |
 | 🔀 **Run diff** | Compare two runs side by side — cost, tokens, latency, spans. |
 | 📈 **Analytics** | Spend over time, activity heatmap, breakdowns by model and tool, CSV export. |
-| 🤖 **Ask-your-runs assistant** | Answers about your traces locally; optional LLM, streamed token by token. |
+| 🤖 **Ask-your-runs assistant** | Answers about your traces locally; or connect any of 13 providers — including local Ollama — streamed token by token. |
 | 🧹 **Retention** | Keeps everything by default; pick a window and old runs are pruned automatically. |
 | 🔒 **Local & sealed** | Runs on your machine; the one secret (assistant key) is AES-256-GCM vaulted. |
 
