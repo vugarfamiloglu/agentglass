@@ -5,13 +5,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { Vault } from "./vault.js";
-import { costOf, priceFor } from "./pricing.js";
+import { costOf, priceFor, providerOf } from "./pricing.js";
+import { ANTHROPIC, OPENAI } from "./providers.js";
+import { ToolTracker } from "./proxy.js";
+import { setRetentionDays, sweepRetention } from "./retention.js";
 import { Store } from "./db.js";
-import { ask } from "./assistant.js";
+import { ask, askStream, type AssistantChunk } from "./assistant.js";
 
 function tmp(): string {
   return mkdtempSync(join(tmpdir(), "ag-test-"));
 }
+
+const DAY = 86_400_000;
 
 test("vault seals and opens a secret, rejects tampering", () => {
   const v = new Vault(tmp());
@@ -27,6 +32,130 @@ test("pricing computes USD from tokens", () => {
   assert.ok(Math.abs(costOf("claude-sonnet-4", 1000, 1000, 0) - expected) < 1e-9);
   // unknown models fall back to a positive default price.
   assert.ok(priceFor("some-unknown-model").input > 0);
+});
+
+test("pricing resolves the most specific catalog row", () => {
+  // A dated id must land on its own row, not the family fallback — Opus 4.8 is
+  // $5/$25 while Opus 4.1 is still $15/$75.
+  assert.equal(priceFor("claude-opus-4-8-20260101").input, 5);
+  assert.equal(priceFor("claude-opus-4-1-20250805").input, 15);
+  assert.equal(priceFor("claude-3-opus-20240229").input, 15);
+  // Bedrock prefixes the vendor onto the id.
+  assert.equal(priceFor("anthropic.claude-sonnet-5").input, 3);
+  assert.equal(providerOf("anthropic.claude-sonnet-5"), "anthropic");
+  // Longer keys win over the ones they contain.
+  assert.equal(priceFor("gpt-4o-mini").input, 0.15);
+  assert.equal(priceFor("gpt-4o").input, 2.5);
+  assert.equal(providerOf("gemini-2.5-flash-lite"), "google");
+  assert.equal(providerOf("nothing-we-know-about"), null);
+});
+
+test("pricing bills cache reads and writes at their own rates", () => {
+  // Anthropic reads back at 0.1x input and writes at 1.25x, so a cached run
+  // costs materially less than the same tokens at full price.
+  const p = priceFor("claude-sonnet-4-6");
+  assert.equal(p.cache, 0.3);
+  assert.equal(p.cacheWrite, 3.75);
+  const expected = (1000 * 3 + 1000 * 15 + 1000 * 0.3 + 1000 * 3.75) / 1_000_000;
+  assert.ok(Math.abs(costOf("claude-sonnet-4-6", 1000, 1000, 1000, 1000) - expected) < 1e-9);
+});
+
+test("anthropic adapter reads usage, tool calls, and tool results", () => {
+  const json = {
+    usage: {
+      input_tokens: 100,
+      output_tokens: 20,
+      cache_read_input_tokens: 900,
+      cache_creation_input_tokens: 50,
+    },
+    content: [
+      { type: "text", text: "let me look" },
+      { type: "tool_use", id: "toolu_1", name: "read_file", input: { path: "a.ts" } },
+    ],
+  };
+
+  const usage = ANTHROPIC.usageFromJson(json);
+  assert.equal(usage.tokensIn, 100);
+  assert.equal(usage.tokensCacheRead, 900);
+  assert.equal(usage.tokensCacheWrite, 50);
+
+  assert.deepEqual(ANTHROPIC.toolCallsFromJson(json), [
+    { id: "toolu_1", name: "read_file", input: { path: "a.ts" } },
+  ]);
+
+  assert.deepEqual(
+    ANTHROPIC.toolResultsFromRequest({
+      messages: [
+        { role: "assistant", content: [{ type: "tool_use", id: "toolu_1" }] },
+        {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "toolu_1", content: "ENOENT", is_error: true }],
+        },
+      ],
+    }),
+    [{ id: "toolu_1", output: "ENOENT", isError: true }],
+  );
+});
+
+test("anthropic adapter rebuilds streamed tool calls from json deltas", () => {
+  const sse = [
+    `data: {"type":"message_start","message":{"usage":{"input_tokens":12,"output_tokens":1}}}`,
+    `data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_9","name":"grep","input":{}}}`,
+    `data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"q\\":"}}`,
+    `data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\\"todo\\"}"}}`,
+    `data: {"type":"message_delta","usage":{"output_tokens":31}}`,
+  ].join("\n");
+
+  assert.deepEqual(ANTHROPIC.toolCallsFromStream(sse), [
+    { id: "toolu_9", name: "grep", input: { q: "todo" } },
+  ]);
+  const usage = ANTHROPIC.usageFromStream(sse);
+  assert.equal(usage.tokensIn, 12);
+  assert.equal(usage.tokensOut, 31);
+});
+
+test("openai adapter separates cached tokens and rebuilds streamed tool calls", () => {
+  // prompt_tokens already counts the cached ones — billing both double-charges.
+  const usage = OPENAI.usageFromJson({
+    usage: { prompt_tokens: 1000, completion_tokens: 40, prompt_tokens_details: { cached_tokens: 768 } },
+  });
+  assert.equal(usage.tokensIn, 232);
+  assert.equal(usage.tokensCacheRead, 768);
+
+  const sse = [
+    `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"run_tests","arguments":""}}]}}]}`,
+    `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"suite\\":\\"unit\\"}"}}]}}]}`,
+    `data: [DONE]`,
+  ].join("\n");
+  assert.deepEqual(OPENAI.toolCallsFromStream(sse), [
+    { id: "call_1", name: "run_tests", input: { suite: "unit" } },
+  ]);
+
+  assert.deepEqual(
+    OPENAI.toolResultsFromRequest({
+      messages: [{ role: "tool", tool_call_id: "call_1", content: "3 passed" }],
+    }),
+    [{ id: "call_1", output: "3 passed", isError: false }],
+  );
+});
+
+test("tool tracker pairs a call with the result on the next request", () => {
+  const tracker = new ToolTracker();
+  tracker.open("sess", "tr_1", [{ id: "toolu_1", name: "read_file", input: { path: "a.ts" } }], 1000);
+
+  // A result whose call we never saw is ignored, not invented.
+  assert.equal(tracker.close("sess", [{ id: "toolu_x", output: "x", isError: false }]).length, 0);
+  // Neither is one from a different agent session.
+  assert.equal(tracker.close("other", [{ id: "toolu_1", output: "x", isError: false }]).length, 0);
+
+  const done = tracker.close("sess", [{ id: "toolu_1", output: "contents", isError: false }]);
+  assert.equal(done.length, 1);
+  assert.equal(done[0]?.traceId, "tr_1");
+  assert.equal(done[0]?.name, "read_file");
+  assert.equal(done[0]?.startedAt, 1000);
+
+  // Agents resend their whole history every turn — that must not re-record.
+  assert.equal(tracker.close("sess", [{ id: "toolu_1", output: "contents", isError: false }]).length, 0);
 });
 
 test("store rolls span totals up into the trace and aggregates", () => {
@@ -68,6 +197,23 @@ test("store rolls span totals up into the trace and aggregates", () => {
   assert.equal(tools[0]?.errors, 1);
 });
 
+test("retention prunes traces past the configured window", () => {
+  const db = new Store(tmp());
+  const old = db.createTrace({ name: "old", source: "sim", startedAt: Date.now() - 40 * DAY });
+  db.addSpan({ traceId: old.id, type: "llm", name: "m", startedAt: 1, endedAt: 2 });
+  db.createTrace({ name: "fresh", source: "sim" });
+
+  // No window configured — nothing is ever deleted behind the user's back.
+  assert.equal(sweepRetention(db), 0);
+  assert.equal(db.traceCount(), 2);
+
+  assert.equal(setRetentionDays(db, 30), 30);
+  assert.equal(sweepRetention(db), 1);
+  assert.equal(db.traceCount(), 1);
+  assert.equal(db.getSpans(old.id).length, 0);
+  assert.ok(db.dbSizeBytes() > 0);
+});
+
 test("assistant answers spend questions locally with no key", async () => {
   const db = new Store(tmp());
   const v = new Vault(tmp());
@@ -88,4 +234,13 @@ test("assistant answers spend questions locally with no key", async () => {
   const reply = await ask(db, v, "how much have I spent?");
   assert.equal(reply.source, "local");
   assert.match(reply.answer, /spent/i);
+
+  // The streaming path carries the same answer and ends with one done chunk.
+  const chunks: AssistantChunk[] = [];
+  await askStream(db, v, "how much have I spent?", undefined, (chunk) => {
+    chunks.push(chunk);
+  });
+  const streamed = chunks.map((c) => (c.type === "delta" ? c.text : "")).join("");
+  assert.equal(streamed, reply.answer);
+  assert.deepEqual(chunks.at(-1), { type: "done", source: "local" });
 });
