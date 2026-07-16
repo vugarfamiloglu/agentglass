@@ -18,6 +18,13 @@ export interface Config {
   webDist: string;
   /** When true, the trace simulator seeds and streams synthetic agent runs. */
   simulate: boolean;
+  /**
+   * Serve reads only — for a public demo. Turns off the recording proxy (a
+   * stranger's agent isn't yours to record) and every write, including the
+   * model-discovery call, which fetches a URL the caller supplies and would
+   * otherwise let anyone probe the host's network from the inside.
+   */
+  readonly: boolean;
 }
 
 function envInt(key: string, fallback: number): number {
@@ -40,5 +47,6 @@ export function loadConfig(): Config {
     // dist/index.js -> ../web/dist
     webDist: process.env.AGENTGLASS_WEB ?? resolve(HERE, "..", "web", "dist"),
     simulate: envBool("AGENTGLASS_SIMULATE", true),
+    readonly: envBool("AGENTGLASS_READONLY", false),
   };
 }

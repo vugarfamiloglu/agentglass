@@ -66,11 +66,27 @@ app.get(
   }),
 );
 
-app.route("/api", apiRoutes(store, hub, vault, VERSION));
+app.route("/api", apiRoutes(store, hub, vault, VERSION, cfg.readonly));
 
 // Recording proxy — Anthropic & OpenAI compatible. Mounted before the SPA
-// catch-all so /v1/* reaches the proxy, not the static handler.
-app.route("/", proxyRoutes(store, hub, correlator, tools));
+// catch-all so /v1/* reaches the proxy, not the static handler. A read-only
+// instance doesn't mount it at all: a stranger's agent isn't ours to record.
+if (cfg.readonly) {
+  // Say so, rather than letting the SPA fallback hand an agent a page of HTML.
+  app.post("/v1/*", (c) =>
+    c.json(
+      {
+        error: {
+          type: "agentglass_readonly",
+          message: "this AgentGlass instance is a read-only demo — run your own to record runs",
+        },
+      },
+      404,
+    ),
+  );
+} else {
+  app.route("/", proxyRoutes(store, hub, correlator, tools));
+}
 
 // Dashboard SPA (production build). Vite serves the UI during development.
 app.use("/*", serveDist(cfg.webDist));
@@ -80,7 +96,7 @@ const server = serve({ fetch: app.fetch, port: cfg.port }, (info) => {
   process.stdout.write(
     `\n  ✦ AgentGlass v${VERSION}\n` +
       `  dashboard   ${url}\n` +
-      `  proxy       set ANTHROPIC_BASE_URL / OPENAI_BASE_URL to ${url}\n` +
+      `  proxy       ${cfg.readonly ? "off — read-only instance" : `set ANTHROPIC_BASE_URL / OPENAI_BASE_URL to ${url}`}\n` +
       `  traces      ${store.traceCount()} stored · ${cfg.simulate ? "simulator on" : "simulator off"}\n\n`,
   );
 });

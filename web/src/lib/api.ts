@@ -118,6 +118,8 @@ export interface AssistantSettings {
   retentionDays: number;
   dbSizeBytes: number;
   traces: number;
+  /** A public demo serves reads only — the UI hides what it can't do. */
+  readonly: boolean;
 }
 
 export interface Health {
@@ -125,6 +127,7 @@ export interface Health {
   version: string;
   traces: number;
   clients: number;
+  readonly: boolean;
 }
 
 export interface TracePage {

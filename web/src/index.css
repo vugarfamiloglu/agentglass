@@ -1728,6 +1728,22 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.set-readonly {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  margin-bottom: 18px;
+  max-width: 640px;
+}
+.diff-select:disabled,
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .set-stat {
   font-size: 11px;
   color: var(--text-subtle);

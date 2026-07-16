@@ -66,6 +66,8 @@ export function Settings() {
   const configured = settings.data?.assistantConfigured ?? false;
   const isCurrent = settings.data?.provider === provider;
   const needsBaseUrl = current ? !current.baseUrl : false;
+  // On a public demo the server refuses writes; don't offer buttons that 403.
+  const readonly = settings.data?.readonly ?? false;
 
   // Once a provider has told us its models, trust that over the price catalog.
   const fromCatalog = (catalog.data ?? [])
@@ -151,6 +153,13 @@ export function Settings() {
         <h1 className="page-title">Settings</h1>
       </div>
 
+      {readonly && (
+        <div className="set-readonly mono">
+          This is a public demo — it serves reads only. Run AgentGlass locally to connect a model,
+          set retention, and point your own agents at it.
+        </div>
+      )}
+
       <section className="panel set-panel">
         <div className="panel-head">
           <div className="panel-title">Assistant model</div>
@@ -174,6 +183,7 @@ export function Settings() {
               className="diff-select mono"
               value={provider}
               onChange={(e) => changeProvider(e.target.value)}
+              disabled={readonly}
             >
               {(providers.data ?? []).map((p) => (
                 <option key={p.id} value={p.id}>
@@ -221,7 +231,7 @@ export function Settings() {
                 onChange={(e) => setModel(e.target.value)}
                 placeholder={current?.defaultModel || "pick or load a model"}
               />
-              <button className="btn-ghost" onClick={() => void loadModels()} disabled={loading}>
+              <button className="btn-ghost" onClick={() => void loadModels()} disabled={loading || readonly}>
                 {loading ? "Loading…" : "Load models"}
               </button>
             </div>
@@ -237,16 +247,18 @@ export function Settings() {
           {current && <div className="set-hint mono">{current.hint}</div>}
         </div>
 
-        <div className="set-actions">
-          <button className="btn-primary" onClick={() => void connect()}>
-            Connect
-          </button>
-          {configured && isCurrent && (
-            <button className="btn-ghost" onClick={() => setPending("removeKey")}>
-              Disconnect
+        {!readonly && (
+          <div className="set-actions">
+            <button className="btn-primary" onClick={() => void connect()}>
+              Connect
             </button>
-          )}
-        </div>
+            {configured && isCurrent && (
+              <button className="btn-ghost" onClick={() => setPending("removeKey")}>
+                Disconnect
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="panel set-panel">
@@ -269,6 +281,7 @@ export function Settings() {
               className="diff-select mono"
               value={retention}
               onChange={(e) => void saveRetention(Number(e.target.value))}
+              disabled={readonly}
             >
               {RETENTION.map((r) => (
                 <option key={r.days} value={r.days}>
@@ -279,11 +292,13 @@ export function Settings() {
           </label>
         </div>
 
-        <div className="set-actions">
-          <button className="btn-ghost is-danger" onClick={() => setPending("clear")}>
-            Clear all traces
-          </button>
-        </div>
+        {!readonly && (
+          <div className="set-actions">
+            <button className="btn-ghost is-danger" onClick={() => setPending("clear")}>
+              Clear all traces
+            </button>
+          </div>
+        )}
       </section>
 
       {msg && <div className="set-msg mono">{msg}</div>}

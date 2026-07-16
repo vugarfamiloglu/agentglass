@@ -22,8 +22,30 @@ import type { Store } from "./db.js";
 import type { Hub } from "./hub.js";
 import type { Vault } from "./vault.js";
 
-export function apiRoutes(store: Store, hub: Hub, vault: Vault, version: string): Hono {
+export function apiRoutes(
+  store: Store,
+  hub: Hub,
+  vault: Vault,
+  version: string,
+  readonly = false,
+): Hono {
   const api = new Hono();
+
+  if (readonly) {
+    // A public demo serves reads. Asking a question is still fine — with no key
+    // it's computed from the store — but nothing may write, and nothing may
+    // fetch a URL a stranger handed us.
+    //
+    // The exclusion matters: /settings/assistant also ends in "/assistant", and
+    // letting that through would hand anyone the vault.
+    const ASK = /\/assistant(\/stream)?$/;
+    api.use("/*", async (c, next) => {
+      if (c.req.method === "GET" || c.req.method === "HEAD") return next();
+      const path = c.req.path;
+      if (ASK.test(path) && !path.includes("/settings/")) return next();
+      return c.json({ ok: false, error: "this instance is read-only" }, 403);
+    });
+  }
 
   api.get("/health", (c) =>
     c.json({
@@ -33,6 +55,7 @@ export function apiRoutes(store: Store, hub: Hub, vault: Vault, version: string)
         version,
         traces: store.traceCount(),
         clients: hub.size,
+        readonly,
       },
     }),
   );
@@ -172,6 +195,7 @@ export function apiRoutes(store: Store, hub: Hub, vault: Vault, version: string)
         retentionDays: retentionDays(store),
         dbSizeBytes: store.dbSizeBytes(),
         traces: store.traceCount(),
+        readonly,
       },
     });
   });
