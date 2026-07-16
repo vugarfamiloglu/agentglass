@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+
+      - run: npm ci
+      - run: npm --prefix web ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # The package is the product: prove the tarball boots and serves before
+      # trusting `npx agentglass` to work for anyone else.
+      - name: Smoke-test the built server
+        run: |
+          AGENTGLASS_PORT=4319 AGENTGLASS_SIMULATE=0 AGENTGLASS_DATA="$RUNNER_TEMP/ag" \
+            node dist/index.js &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4319/api/health >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://localhost:4319/api/health | tee /dev/stderr | grep -q '"service":"agentglass"'
+          curl -sf -o /dev/null -w 'dashboard %{http_code}\n' http://localhost:4319/

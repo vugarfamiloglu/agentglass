@@ -59,29 +59,41 @@ token by token, dollar by dollar.
 ## Quickstart
 
 ```bash
-git clone https://github.com/vugarfamiloglu/agentglass.git
-cd agentglass
-npm install && npm --prefix web install
-npm run dev
+npx agentglass
 ```
 
-Open **http://localhost:4318** — the dashboard is live with a week of **simulated**
-agent runs, so you can explore every screen immediately without wiring anything up.
+That's it. Open **http://localhost:4319** — the dashboard is live with a week of
+**simulated** agent runs, so every screen has something to show before you've
+wired up anything at all.
+
 Then point a real agent at it:
 
 ```bash
 # Claude / Anthropic SDK
 export ANTHROPIC_BASE_URL=http://localhost:4319
 
-# OpenAI SDK
+# OpenAI SDK — also OpenRouter, LiteLLM, Groq, Together, vLLM, Ollama…
 export OPENAI_BASE_URL=http://localhost:4319/v1
 ```
 
-Run your agent as usual — every call now shows up in AgentGlass.
+Run your agent as usual. Every call, every tool, every token, every cent shows up
+— **no SDK, no decorators, no code changes.**
 
-> **Prefer one command?** `docker run -p 4319:4319 agentglass` (see
-> [Docker](#docker)) serves the whole thing — dashboard, API, and proxy — on
-> port `4319`.
+<details>
+<summary>Other ways to run it</summary>
+
+```bash
+# Container
+docker run -p 4319:4319 -v agentglass:/app/data ghcr.io/vugarfamiloglu/agentglass
+
+# From source, with hot reload (dashboard on :4318, server on :4319)
+git clone https://github.com/vugarfamiloglu/agentglass.git
+cd agentglass
+npm install && npm --prefix web install
+npm run dev
+```
+
+</details>
 
 ---
 
@@ -317,28 +329,50 @@ All charts and visualizations are hand-rolled SVG — no charting library.
 agentglass/
   src/                server (Node + Hono + node:sqlite)
     index.ts            entry — API + WebSocket + proxy + SPA hosting
-    proxy.ts            the recording proxy (Anthropic + OpenAI)
+    proxy.ts            the recording proxy — correlation + tool reconstruction
+    providers.ts        provider wire formats (what flows *through* the proxy)
+    llm.ts              the assistant's LLM clients (what it calls *out* to)
     db.ts               trace store (traces → spans, WAL, rollups)
     sim.ts              simulator — a week of realistic runs, streamed live
     assistant.ts        ask-your-runs (local answers + optional LLM)
     vault.ts            AES-256-GCM key sealing
-    pricing.ts          per-model token pricing
+    pricing.ts          the model catalog + token pricing
+    retention.ts        pruning old traces
     hub.ts / api.ts     live event fan-out / REST surface
   web/                dashboard (Vite + React 19 + TypeScript)
     src/pages/          Overview, Traces, TraceDetail, Diff, Analytics, …
     src/components/     hand-rolled SVG charts, the assistant rail, …
-  docs/screenshots/   the images in this README
+  scripts/            record-demo.mjs — re-cuts the GIF at the top of this file
+  deploy/             fly.toml for a read-only public demo
+  docs/               demo.gif + the screenshots in this README
 ```
 
 ## Docker
 
 ```bash
-docker build -t agentglass .
-docker run -p 4319:4319 -v agentglass-data:/app/data agentglass
+docker run -p 4319:4319 -v agentglass:/app/data ghcr.io/vugarfamiloglu/agentglass
 ```
 
 Open **http://localhost:4319**. The container serves the built dashboard, the API,
-the WebSocket stream, and the recording proxy — all on one port.
+the WebSocket stream, and the recording proxy — all on one port. Images are built
+and smoke-tested on tag; `docker build -t agentglass .` works locally too.
+
+## Hosting a public demo
+
+A hosted AgentGlass can't be the one you run locally: strangers shouldn't be able
+to clear your traces, write a key into your vault, or proxy their agents through
+your box. `AGENTGLASS_READONLY=1` serves reads and refuses the rest — no proxy, no
+writes, and no model-discovery call, which fetches a URL the caller supplies and
+on a public host would let anyone probe your network from the inside. Asking the
+assistant still works: with no key it's computed from the store, so it costs
+nothing and reaches nothing.
+
+```bash
+fly deploy --config deploy/fly.toml   # read-only + simulator, no volume
+```
+
+No volume is deliberate — the data directory stays ephemeral, so every cold start
+seeds a fresh week of runs and the demo can never grow stale or unbounded.
 
 ## Configuration
 
@@ -347,6 +381,7 @@ the WebSocket stream, and the recording proxy — all on one port.
 | `AGENTGLASS_PORT` | `4319` | Dashboard / API / proxy port |
 | `AGENTGLASS_DATA` | `data` | SQLite store + vault key directory |
 | `AGENTGLASS_SIMULATE` | `1` | Seed & stream simulated runs (set `0` to disable) |
+| `AGENTGLASS_READONLY` | `0` | Serve reads only — for a public demo (see above) |
 | `ANTHROPIC_API_URL` | `https://api.anthropic.com` | Upstream to forward Anthropic calls to |
 | `OPENAI_API_URL` | `https://api.openai.com` | Upstream to forward OpenAI calls to |
 

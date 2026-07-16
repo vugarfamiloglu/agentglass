@@ -1,0 +1,35 @@
+# A public, read-only AgentGlass demo.
+#
+#   fly launch --no-deploy --copy-config --config deploy/fly.toml
+#   fly deploy --config deploy/fly.toml
+#
+# No volume on purpose: the data directory is ephemeral, so every cold start
+# seeds a fresh week of simulated runs. The demo never grows, never needs
+# pruning, and can't drift into a stale mess.
+
+app = "agentglass-demo"
+primary_region = "iad"
+
+[build]
+  dockerfile = "../Dockerfile"
+
+[env]
+  # Serve reads only — no proxy, no writes, no fetching URLs a visitor supplies.
+  AGENTGLASS_READONLY = "1"
+  # The simulator is the demo: runs stream in on their own.
+  AGENTGLASS_SIMULATE = "1"
+
+[http_service]
+  internal_port = 4319
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.http_options.response.headers]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
