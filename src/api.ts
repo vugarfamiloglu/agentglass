@@ -7,6 +7,15 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 
 import { ask, askStream } from "./assistant.js";
+import {
+  configuredProviders,
+  forgetKey,
+  listModels,
+  LLM_PROVIDERS,
+  providerById,
+  resolveTarget,
+  saveKey,
+} from "./llm.js";
 import { CATALOG } from "./pricing.js";
 import { retentionDays, setRetentionDays, sweepRetention } from "./retention.js";
 import type { Store } from "./db.js";
@@ -119,19 +128,53 @@ export function apiRoutes(store: Store, hub: Hub, vault: Vault, version: string)
   /** The pricing catalog, so the UI can name models and show what they cost. */
   api.get("/models", (c) => c.json({ ok: true, data: CATALOG }));
 
-  api.get("/settings", (c) =>
-    c.json({
+  /** Every LLM the assistant can be pointed at. Never carries a key. */
+  api.get("/assistant/providers", (c) => c.json({ ok: true, data: LLM_PROVIDERS }));
+
+  /**
+   * Ask a provider what it actually serves today. Accepts an unsaved key so
+   * you can browse before committing one, and falls back to the stored key.
+   */
+  api.post("/assistant/models", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const pick = (k: string) => (typeof body[k] === "string" ? (body[k] as string).trim() : undefined);
+    const target = resolveTarget(store, vault, {
+      provider: pick("provider"),
+      key: pick("key") || undefined,
+      baseUrl: pick("baseUrl") || undefined,
+    });
+    if (target.status !== "ready") {
+      const why = target.status === "broken" ? target.message : "connect a provider first";
+      return c.json({ ok: false, error: why }, 400);
+    }
+    try {
+      return c.json({ ok: true, data: { models: await listModels(target.llm) } });
+    } catch (err) {
+      return c.json(
+        { ok: false, error: err instanceof Error ? err.message : "could not reach the provider" },
+        502,
+      );
+    }
+  });
+
+  api.get("/settings", (c) => {
+    const provider = store.getSetting("assistant_provider") ?? "anthropic";
+    const target = resolveTarget(store, vault);
+    return c.json({
       ok: true,
       data: {
-        assistantConfigured: Boolean(store.getSetting("assistant_key")),
-        provider: store.getSetting("assistant_provider") ?? "anthropic",
+        assistantConfigured: target.status === "ready",
+        provider,
         model: store.getSetting("assistant_model") ?? "",
+        baseUrl: store.getSetting(`assistant_base_url:${provider}`) ?? "",
+        // So the UI can mark which providers already hold a key.
+        configuredProviders: configuredProviders(store, vault),
         retentionDays: retentionDays(store),
         dbSizeBytes: store.dbSizeBytes(),
         traces: store.traceCount(),
       },
-    }),
-  );
+    });
+  });
 
   api.put("/settings/retention", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { days?: unknown };
@@ -143,23 +186,28 @@ export function apiRoutes(store: Store, hub: Hub, vault: Vault, version: string)
   });
 
   api.post("/settings/assistant", async (c) => {
-    const body = (await c.req.json().catch(() => ({}))) as {
-      key?: unknown;
-      provider?: unknown;
-      model?: unknown;
-    };
-    const key = typeof body.key === "string" ? body.key.trim() : "";
-    const provider = body.provider === "openai" ? "openai" : "anthropic";
-    const model = typeof body.model === "string" ? body.model.trim() : "";
-    if (!key) return c.json({ ok: false, error: "an API key is required" }, 400);
-    store.setSetting("assistant_key", vault.seal(key));
-    store.setSetting("assistant_provider", provider);
-    if (model) store.setSetting("assistant_model", model);
-    return c.json({ ok: true, data: { configured: true } });
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const pick = (k: string) => (typeof body[k] === "string" ? (body[k] as string).trim() : "");
+    const provider = providerById(pick("provider") || "anthropic");
+    const key = pick("key");
+    const baseUrl = pick("baseUrl");
+
+    if (key) saveKey(store, vault, provider.id, key);
+    store.setSetting("assistant_provider", provider.id);
+    store.setSetting("assistant_model", pick("model"));
+    store.setSetting(`assistant_base_url:${provider.id}`, baseUrl);
+
+    // Report what's still missing rather than saving and going quiet about it.
+    const target = resolveTarget(store, vault);
+    if (target.status === "broken") return c.json({ ok: false, error: target.message }, 400);
+    if (target.status === "unconfigured") {
+      return c.json({ ok: false, error: `${provider.label} needs an API key.` }, 400);
+    }
+    return c.json({ ok: true, data: { configured: true, model: target.llm.model } });
   });
 
   api.delete("/settings/assistant", (c) => {
-    store.setSetting("assistant_key", "");
+    forgetKey(store, store.getSetting("assistant_provider") ?? "anthropic");
     return c.json({ ok: true, data: { configured: false } });
   });
 
