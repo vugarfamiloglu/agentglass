@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "The glass box for your AI agents — capture, inspect, replay, and analyze every agent run. Point your agent at AgentGlass and see everything.",
   "type": "module",
+  "homepage": "https://github.com/vugarfamiloglu/agentglass#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vugarfamiloglu/agentglass.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vugarfamiloglu/agentglass/issues"
+  },
   "bin": {
     "agentglass": "dist/index.js"
   },
@@ -31,6 +39,7 @@
     "dev:server": "tsx watch src/index.ts",
     "dev:web": "npm --prefix web run dev",
     "build": "npm --prefix web run build && tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
     "start": "node dist/index.js",
     "test": "tsx --test src/agentglass.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && npm --prefix web run typecheck"

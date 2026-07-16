@@ -26,3 +26,6 @@ Thumbs.db
 
 # demo recordings (the committed artefact is docs/demo.gif)
 rec/
+
+# npm pack output
+*.tgz
