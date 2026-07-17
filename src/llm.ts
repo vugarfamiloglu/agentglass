@@ -28,6 +28,17 @@ export interface LlmProvider {
   keyless?: boolean;
   /** Shown under the key field — where to get one, or why you don't need one. */
   hint: string;
+  /**
+   * Which field caps the response.
+   *
+   * `max_completion_tokens` is OpenAI's newer name and the only one their
+   * reasoning models accept. Almost every other OpenAI-compatible server still
+   * speaks `max_tokens` — and ignores the newer name in silence rather than
+   * rejecting it, which is the worse failure: asked for a cap of 20, a local
+   * Ollama returned 692 tokens and reported `finish_reason: "stop"`, as though
+   * it had simply finished. The caller believes it has a cap and has none.
+   */
+  tokenParam?: "max_tokens" | "max_completion_tokens";
 }
 
 export const LLM_PROVIDERS: readonly LlmProvider[] = [
@@ -48,6 +59,9 @@ export const LLM_PROVIDERS: readonly LlmProvider[] = [
     // a small cap, so the default is the flagship that streams predictably.
     defaultModel: "gpt-4.1",
     hint: "platform.openai.com → API keys",
+    // The only provider that needs the newer name — those same reasoning models
+    // reject max_tokens outright.
+    tokenParam: "max_completion_tokens",
   },
   {
     id: "google",
@@ -289,6 +303,9 @@ export async function listModels(llm: LlmTarget): Promise<string[]> {
     .sort();
 }
 
+/** Long enough for an answer about a trace, short enough not to ramble. */
+const ANSWER_TOKENS = 1200;
+
 export async function streamLLM(
   llm: LlmTarget,
   system: string,
@@ -304,14 +321,17 @@ export async function streamLLM(
         ? {
             model: llm.model,
             stream: true,
-            max_tokens: 1200,
+            // Anthropic's own name for it, and required rather than optional.
+            max_tokens: ANSWER_TOKENS,
             system,
             messages: [{ role: "user", content: question }],
           }
         : {
             model: llm.model,
             stream: true,
-            max_completion_tokens: 1200,
+            // Default to max_tokens: it's what compat servers understand, and
+            // one that doesn't will reject it loudly rather than ignore it.
+            [llm.provider.tokenParam ?? "max_tokens"]: ANSWER_TOKENS,
             messages: [
               { role: "system", content: system },
               { role: "user", content: question },
